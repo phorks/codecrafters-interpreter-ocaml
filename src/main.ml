@@ -1,47 +1,72 @@
+let match_head seq ch =
+  match seq () with
+  | Seq.Nil -> (false, seq)
+  | Seq.Cons (hd, tl) -> if hd == ch then (true, tl) else (false, seq)
+
 let rec scan seq line =
   match seq () with
   | Seq.Nil ->
       print_endline "EOF  null";
       false
   | Seq.Cons (hd, tl) ->
-      let line', has_error =
+      let line', has_error, rest =
         match hd with
         | '(' ->
             print_endline "LEFT_PAREN ( null";
-            (line, false)
+            (line, false, tl)
         | ')' ->
             print_endline "RIGHT_PAREN ) null";
-            (line, false)
+            (line, false, tl)
         | '{' ->
             print_endline "LEFT_BRACE { null";
-            (line, false)
+            (line, false, tl)
         | '}' ->
             print_endline "RIGHT_BRACE } null";
-            (line, false)
+            (line, false, tl)
         | ',' ->
             print_endline "COMMA , null";
-            (line, false)
+            (line, false, tl)
         | '.' ->
             print_endline "DOT . null";
-            (line, false)
+            (line, false, tl)
         | '-' ->
             print_endline "MINUS - null";
-            (line, false)
+            (line, false, tl)
         | '+' ->
             print_endline "PLUS + null";
-            (line, false)
+            (line, false, tl)
         | ';' ->
             print_endline "SEMICOLON ; null";
-            (line, false)
+            (line, false, tl)
         | '*' ->
             print_endline "STAR * null";
-            (line, false)
-        | '\n' -> (line + 1, false)
+            (line, false, tl)
+        | '!' ->
+            let next_eq, tl' = match_head tl '=' in
+            print_endline
+              (if next_eq then "BANG_EQUAL != null" else "BANG ! null");
+            (line, false, tl')
+        | '=' ->
+            let next_eq, tl' = match_head tl '=' in
+            print_endline
+              (if next_eq then "EQUAL_EQUAL == null" else "EQUAL = null");
+            (line, false, tl')
+        | '<' ->
+            let next_eq, tl' = match_head tl '=' in
+            print_endline
+              (if next_eq then "LESS_EQUAL <= null" else "LESS < null");
+            (line, false, tl')
+        | '>' ->
+            let next_eq, tl' = match_head tl '=' in
+            print_endline
+              (if next_eq then "GREATER_EQUAL >= null" else "GREATER > null");
+            (line, false, tl')
+        | '\n' -> (line + 1, false, tl)
         | _ ->
             Printf.eprintf "[line %d] Error: Unexpected character: %c\n" line hd;
-            (line, true)
+            (line, true, tl)
       in
-      scan tl line' || has_error
+      scan rest line' || has_error
 
 let () =
   if Array.length Sys.argv < 3 then (
