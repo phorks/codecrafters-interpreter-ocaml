@@ -1,3 +1,25 @@
+type token_type = LeftParen | RightParen | Unknown
+type token = { ttype : token_type; lexeme : string }
+
+let char_to_token ch =
+  let ttype =
+    match ch with
+    | '(' -> LeftParen
+    | ')' -> RightParen
+    | _ -> failwith "unexpected character"
+  in
+  { ttype; lexeme = String.make 1 ch }
+
+let rec scan seq =
+  match seq () with
+  | Seq.Nil -> print_endline "EOF  NULL"
+  | Seq.Cons (hd, tl) ->
+      (match hd with
+      | '(' -> print_endline "LEFT_PAREN ( null"
+      | ')' -> print_endline "RIGHT_PAREN ) null"
+      | _ -> failwith "unexpected error");
+      scan tl
+
 let () =
   if Array.length Sys.argv < 3 then (
     Printf.eprintf "Usage: ./your_program.sh tokenize <filename>\n";
@@ -12,13 +34,15 @@ let () =
 
   let file_contents = In_channel.with_open_text filename In_channel.input_all in
 
-  (* You can use print statements as follows for debugging, they'll be visible when running tests. *)
-  (* Printf.eprintf "Logs from your program will appear here!\n"; *)
-  if String.length file_contents > 0 then
-    (* Implement & use your scanner here *)
-    failwith "Scanner not implemented"
-  else
-    (* Uncomment this block to pass the first stage *)
-    print_endline "EOF  null";
-  (* Placeholder, remove this line when implementing the scanner *)
-  ()
+  scan (String.to_seq file_contents)
+
+(* (* You can use print statements as follows for debugging, they'll be visible when running tests. *) *)
+(* (* Printf.eprintf "Logs from your program will appear here!\n"; *) *)
+(* if String.length file_contents > 0 then *)
+(*   (* Implement & use your scanner here *) *)
+(*   failwith "Scanner not implemented" *)
+(* else *)
+(*   (* Uncomment this block to pass the first stage *) *)
+(*   print_endline "EOF  null"; *)
+(* (* Placeholder, remove this line when implementing the scanner *) *)
+(* () *)
