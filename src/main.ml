@@ -38,7 +38,7 @@ let rec scan seq line =
             (line, false)
         | '\n' -> (line + 1, false)
         | _ ->
-            Printf.eprintf "[line %d] Error: Unexpected character: %c" line hd;
+            Printf.eprintf "[line %d] Error: Unexpected character: %c\n" line hd;
             (line, true)
       in
       scan tl line' || has_error
