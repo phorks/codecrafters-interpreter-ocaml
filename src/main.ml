@@ -71,7 +71,7 @@ let rec scan seq line =
                 print_endline "SLASH / null";
                 (line, tl'))
             in
-            (line, false, tl'')
+            (next_line, false, tl'')
         | ' ' | '\r' | '\t' -> (line, false, tl)
         | '\n' -> (line + 1, false, tl)
         | _ ->
