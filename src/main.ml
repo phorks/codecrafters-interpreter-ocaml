@@ -1,15 +1,3 @@
-type token_type = LeftParen | RightParen | Unknown
-type token = { ttype : token_type; lexeme : string }
-
-let char_to_token ch =
-  let ttype =
-    match ch with
-    | '(' -> LeftParen
-    | ')' -> RightParen
-    | _ -> failwith "unexpected character"
-  in
-  { ttype; lexeme = String.make 1 ch }
-
 let rec scan seq =
   match seq () with
   | Seq.Nil -> print_endline "EOF  NULL"
