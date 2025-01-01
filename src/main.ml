@@ -61,6 +61,16 @@ let rec scan seq line =
             print_endline
               (if next_eq then "GREATER_EQUAL >= null" else "GREATER > null");
             (line, false, tl')
+        | '/' ->
+            let next_slash, tl' = match_head tl '/' in
+            let tl'' =
+              if next_slash then
+                Seq.drop 1 (Seq.drop_while (fun ch -> ch <> '\n') tl')
+              else (
+                print_endline "SLASH / null";
+                tl')
+            in
+            (line, false, tl'')
         | '\n' -> (line + 1, false, tl)
         | _ ->
             Printf.eprintf "[line %d] Error: Unexpected character: %c\n" line hd;
