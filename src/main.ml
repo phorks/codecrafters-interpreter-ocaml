@@ -93,13 +93,14 @@ let rec scan seq line =
             (match literal with
             | None -> report_lexical_error line "Unterminated string."
             | Some literal ->
-                Printf.printf "STRING \"%s\" %s" literal literal;
+                Printf.printf "STRING \"%s\" %s\n" literal literal;
                 ());
             (line, false, tl')
         | ' ' | '\r' | '\t' -> (line, false, tl)
         | '\n' -> (line + 1, false, tl)
         | _ ->
-            Printf.eprintf "[line %d] Error: Unexpected character: %c\n" line hd;
+            report_lexical_error line
+              (Printf.sprintf "Unexpected character: %c" hd);
             (line, true, tl)
       in
       scan rest line' || has_error
