@@ -7,6 +7,12 @@ let rec scan seq =
       | ')' -> print_endline "RIGHT_PAREN ) null"
       | '{' -> print_endline "LEFT_BRACE { null"
       | '}' -> print_endline "RIGHT_BRACE } null"
+      | ',' -> print_endline "COMMA , null"
+      | '.' -> print_endline "DOT . null"
+      | '-' -> print_endline "MINUS - null"
+      | '+' -> print_endline "PLUS + null"
+      | ';' -> print_endline "SEMICOLON ; null"
+      | '*' -> print_endline "STAR * null"
       | _ -> failwith "unexpected error");
       scan tl
 
