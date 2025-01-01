@@ -5,8 +5,8 @@ let rec scan seq =
       (match hd with
       | '(' -> print_endline "LEFT_PAREN ( null"
       | ')' -> print_endline "RIGHT_PAREN ) null"
-      | '{' -> print_endline "LEFT_BRACE ) null"
-      | '}' -> print_endline "RIGHT_BRACE ) null"
+      | '{' -> print_endline "LEFT_BRACE { null"
+      | '}' -> print_endline "RIGHT_BRACE } null"
       | _ -> failwith "unexpected error");
       scan tl
 
