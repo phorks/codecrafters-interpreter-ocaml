@@ -63,12 +63,13 @@ let rec scan seq line =
             (line, false, tl')
         | '/' ->
             let next_slash, tl' = match_head tl '/' in
-            let tl'' =
+            let next_line, tl'' =
               if next_slash then
-                Seq.drop 1 (Seq.drop_while (fun ch -> ch <> '\n') tl')
+                ( line + 1,
+                  Seq.drop 1 (Seq.drop_while (fun ch -> ch <> '\n') tl') )
               else (
                 print_endline "SLASH / null";
-                tl')
+                (line, tl'))
             in
             (line, false, tl'')
         | ' ' | '\r' | '\t' -> (line, false, tl)
