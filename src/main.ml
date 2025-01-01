@@ -1,6 +1,6 @@
 let rec scan seq =
   match seq () with
-  | Seq.Nil -> print_endline "EOF  NULL"
+  | Seq.Nil -> print_endline "EOF  null"
   | Seq.Cons (hd, tl) ->
       (match hd with
       | '(' -> print_endline "LEFT_PAREN ( null"
