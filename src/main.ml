@@ -1,20 +1,46 @@
-let rec scan seq =
+let rec scan seq line =
   match seq () with
   | Seq.Nil -> print_endline "EOF  null"
   | Seq.Cons (hd, tl) ->
-      (match hd with
-      | '(' -> print_endline "LEFT_PAREN ( null"
-      | ')' -> print_endline "RIGHT_PAREN ) null"
-      | '{' -> print_endline "LEFT_BRACE { null"
-      | '}' -> print_endline "RIGHT_BRACE } null"
-      | ',' -> print_endline "COMMA , null"
-      | '.' -> print_endline "DOT . null"
-      | '-' -> print_endline "MINUS - null"
-      | '+' -> print_endline "PLUS + null"
-      | ';' -> print_endline "SEMICOLON ; null"
-      | '*' -> print_endline "STAR * null"
-      | _ -> failwith "unexpected error");
-      scan tl
+      let line' =
+        match hd with
+        | '(' ->
+            print_endline "LEFT_PAREN ( null";
+            line
+        | ')' ->
+            print_endline "RIGHT_PAREN ) null";
+            line
+        | '{' ->
+            print_endline "LEFT_BRACE { null";
+            line
+        | '}' ->
+            print_endline "RIGHT_BRACE } null";
+            line
+        | ',' ->
+            print_endline "COMMA , null";
+            line
+        | '.' ->
+            print_endline "DOT . null";
+            line
+        | '-' ->
+            print_endline "MINUS - null";
+            line
+        | '+' ->
+            print_endline "PLUS + null";
+            line
+        | ';' ->
+            print_endline "SEMICOLON ; null";
+            line
+        | '*' ->
+            print_endline "STAR * null";
+            line
+        | '\n' -> line + 1
+        | _ ->
+            failwith
+              (Printf.sprintf "[line %d] Error: Unexpected character: %c" line
+                 hd)
+      in
+      scan tl line'
 
 let () =
   if Array.length Sys.argv < 3 then (
