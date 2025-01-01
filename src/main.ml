@@ -56,7 +56,7 @@ let () =
 
   let file_contents = In_channel.with_open_text filename In_channel.input_all in
 
-  scan (String.to_seq file_contents)
+  scan (String.to_seq file_contents) 1
 
 (* (* You can use print statements as follows for debugging, they'll be visible when running tests. *) *)
 (* (* Printf.eprintf "Logs from your program will appear here!\n"; *) *)
