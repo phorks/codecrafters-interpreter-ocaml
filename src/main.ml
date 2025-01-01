@@ -71,6 +71,7 @@ let rec scan seq line =
                 tl')
             in
             (line, false, tl'')
+        | ' ' | '\r' | '\t' -> (line, false, tl)
         | '\n' -> (line + 1, false, tl)
         | _ ->
             Printf.eprintf "[line %d] Error: Unexpected character: %c\n" line hd;
