@@ -36,9 +36,10 @@ let rec scan seq line =
             line
         | '\n' -> line + 1
         | _ ->
-            failwith
+            print_endline
               (Printf.sprintf "[line %d] Error: Unexpected character: %c" line
-                 hd)
+                 hd);
+            line
       in
       scan tl line'
 
