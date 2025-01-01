@@ -1,7 +1,23 @@
+let report_lexical_error line msg =
+  Printf.eprintf "[line %d] Error: %s\n" line msg
+
 let match_head seq ch =
   match seq () with
   | Seq.Nil -> (false, seq)
   | Seq.Cons (hd, tl) -> if hd == ch then (true, tl) else (false, seq)
+
+let match_string_literal seq =
+  let rec f seq literal =
+    match seq () with
+    | Seq.Nil -> (None, seq)
+    | Seq.Cons (hd, tl) -> (
+        if hd == '"' then (Some literal, tl)
+        else
+          match f tl (literal ^ Char.escaped hd) with
+          | None, tl' -> (None, tl')
+          | Some s, tl' -> (Some s, tl'))
+  in
+  f seq String.empty
 
 let rec scan seq line =
   match seq () with
@@ -72,6 +88,14 @@ let rec scan seq line =
                 (line, tl'))
             in
             (next_line, false, tl'')
+        | '"' ->
+            let literal, tl' = match_string_literal tl in
+            (match literal with
+            | None -> report_lexical_error line "Unterminated string."
+            | Some literal ->
+                Printf.printf "STRING \"%s\" %s" literal literal;
+                ());
+            (line, false, tl')
         | ' ' | '\r' | '\t' -> (line, false, tl)
         | '\n' -> (line + 1, false, tl)
         | _ ->
