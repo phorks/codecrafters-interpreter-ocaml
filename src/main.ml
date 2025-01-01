@@ -1,45 +1,47 @@
 let rec scan seq line =
   match seq () with
-  | Seq.Nil -> print_endline "EOF  null"
+  | Seq.Nil ->
+      print_endline "EOF  null";
+      false
   | Seq.Cons (hd, tl) ->
-      let line' =
+      let line', has_error =
         match hd with
         | '(' ->
             print_endline "LEFT_PAREN ( null";
-            line
+            (line, false)
         | ')' ->
             print_endline "RIGHT_PAREN ) null";
-            line
+            (line, false)
         | '{' ->
             print_endline "LEFT_BRACE { null";
-            line
+            (line, false)
         | '}' ->
             print_endline "RIGHT_BRACE } null";
-            line
+            (line, false)
         | ',' ->
             print_endline "COMMA , null";
-            line
+            (line, false)
         | '.' ->
             print_endline "DOT . null";
-            line
+            (line, false)
         | '-' ->
             print_endline "MINUS - null";
-            line
+            (line, false)
         | '+' ->
             print_endline "PLUS + null";
-            line
+            (line, false)
         | ';' ->
             print_endline "SEMICOLON ; null";
-            line
+            (line, false)
         | '*' ->
             print_endline "STAR * null";
-            line
-        | '\n' -> line + 1
+            (line, false)
+        | '\n' -> (line + 1, false)
         | _ ->
             Printf.eprintf "[line %d] Error: Unexpected character: %c" line hd;
-            line
+            (line, true)
       in
-      scan tl line'
+      scan tl line' || has_error
 
 let () =
   if Array.length Sys.argv < 3 then (
@@ -55,7 +57,8 @@ let () =
 
   let file_contents = In_channel.with_open_text filename In_channel.input_all in
 
-  scan (String.to_seq file_contents) 1
+  let has_error = scan (String.to_seq file_contents) 1 in
+  if has_error then exit 65
 
 (* (* You can use print statements as follows for debugging, they'll be visible when running tests. *) *)
 (* (* Printf.eprintf "Logs from your program will appear here!\n"; *) *)
