@@ -90,12 +90,16 @@ let rec scan seq line =
             (next_line, false, tl'')
         | '"' ->
             let literal, tl' = match_string_literal tl in
-            (match literal with
-            | None -> report_lexical_error line "Unterminated string."
-            | Some literal ->
-                Printf.printf "STRING \"%s\" %s\n" literal literal;
-                ());
-            (line, false, tl')
+            let has_error =
+              match literal with
+              | None ->
+                  report_lexical_error line "Unterminated string.";
+                  true
+              | Some literal ->
+                  Printf.printf "STRING \"%s\" %s\n" literal literal;
+                  false
+            in
+            (line, has_error, tl')
         | ' ' | '\r' | '\t' -> (line, false, tl)
         | '\n' -> (line + 1, false, tl)
         | _ ->
