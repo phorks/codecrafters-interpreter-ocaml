@@ -18,22 +18,22 @@ type reserved =
 
 let reserved_to_string r =
   match r with
-  | AndKeyword -> "and"
-  | ClassKeyword -> "class"
-  | ElseKeyword -> "else"
-  | FalseKeyword -> "false"
-  | ForKeyword -> "for"
-  | FunKeyword -> "fun"
-  | IfKeyword -> "if"
-  | NilKeyword -> "nil"
-  | OrKeyword -> "or"
-  | PrintKeyword -> "print"
-  | ReturnKeyword -> "return"
-  | SuperKeyword -> "super"
-  | ThisKeyword -> "this"
-  | TrueKeyword -> "true"
-  | VarKeyword -> "var"
-  | WhileKeyword -> "while"
+  | AndKeyword -> "AND"
+  | ClassKeyword -> "CLASS"
+  | ElseKeyword -> "ELSE"
+  | FalseKeyword -> "FALSE"
+  | ForKeyword -> "FOR"
+  | FunKeyword -> "FUN"
+  | IfKeyword -> "IF"
+  | NilKeyword -> "NIL"
+  | OrKeyword -> "OR"
+  | PrintKeyword -> "PRINT"
+  | ReturnKeyword -> "RETURN"
+  | SuperKeyword -> "SUPER"
+  | ThisKeyword -> "THIS"
+  | TrueKeyword -> "TRUE"
+  | VarKeyword -> "VAR"
+  | WhileKeyword -> "WHILE"
 
 let reserved_of_string_opt s =
   match s with
