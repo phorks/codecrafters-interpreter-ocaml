@@ -115,6 +115,9 @@ module Scanner : SCANNER = struct
       match seq () with
       | Seq.Nil -> (None, seq, line)
       | Seq.Cons (hd, tl) -> (
+          if hd == '\t' then (
+            Printf.eprintf "found it";
+            ());
           if hd == '"' then (Some literal, tl, line)
           else
             let rest, line =
