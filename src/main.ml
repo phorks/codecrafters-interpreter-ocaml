@@ -7,7 +7,7 @@ let tokenize file_contents =
     | List.(hd :: tl) ->
         (match hd with
         | Error err ->
-            Printf.printf "[line %d] Error: %s\n" err.line err.msg;
+            Printf.eprintf "[line %d] Error: %s\n" err.line err.msg;
             ()
         | Ok token ->
             Printf.printf "%s %s %s\n" (tt_string token.tt) token.lexeme
