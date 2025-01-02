@@ -20,6 +20,28 @@ let tokenize file_contents =
   aux tokens;
   result
 
+let rec map_tokens tokens =
+  match tokens with
+  | List.[] -> Some List.[]
+  | List.(hd :: tl) -> (
+      match map_tokens tl with
+      | Some tl' -> (
+          match hd with Ok token -> Some List.(token :: tl') | _ -> None)
+      | None -> None)
+
+let parse file_contents =
+  let scanner = Scanner.scanner file_contents in
+  let tokens, _ = Scanner.scan scanner in
+  Option.bind (map_tokens tokens) (fun tokens ->
+      let x = Parser.parse_expr ((List.to_seq tokens) ()) in
+      match x with
+      | Some expr ->
+          Printf.printf "%s" (Parser.pretty_print expr);
+          None
+      | None ->
+          Printf.eprintf "failed";
+          None)
+
 let () =
   if Array.length Sys.argv < 3 then (
     Printf.eprintf "Usage: ./your_program.sh tokenize <filename>\n";
@@ -29,13 +51,22 @@ let () =
 
   let filename = Sys.argv.(2) in
 
-  if command <> "tokenize" then (
-    Printf.eprintf "Unknown command: %s\n" command;
-    exit 1);
-
-  let file_contents = In_channel.with_open_text filename In_channel.input_all in
-  let result = tokenize file_contents in
-  match result with Successful -> exit 0 | HadError -> exit 65
+  match command with
+  | "tokenize" -> (
+      let file_contents =
+        In_channel.with_open_text filename In_channel.input_all
+      in
+      let result = tokenize file_contents in
+      match result with Successful -> exit 0 | HadError -> exit 65)
+  | "parse" ->
+      let file_contents =
+        In_channel.with_open_text filename In_channel.input_all
+      in
+      let _ = parse file_contents in
+      exit 0
+  | _ ->
+      Printf.eprintf "Unknown command: %s\n" command;
+      exit 1
 
 (* let has_error = scan (String.to_seq file_contents) 1 in *)
 (* if has_error then exit 65 *)

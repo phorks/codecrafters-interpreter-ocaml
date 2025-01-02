@@ -55,6 +55,25 @@ let reserved_of_string_opt s =
   | "while" -> Some WhileKeyword
   | _ -> None
 
+let pretty_print_reserved r =
+  match r with
+  | AndKeyword -> "and"
+  | ClassKeyword -> "class"
+  | ElseKeyword -> "else"
+  | FalseKeyword -> "false"
+  | ForKeyword -> "for"
+  | FunKeyword -> "fun"
+  | IfKeyword -> "if"
+  | NilKeyword -> "nil"
+  | OrKeyword -> "or"
+  | PrintKeyword -> "print"
+  | ReturnKeyword -> "return"
+  | SuperKeyword -> "super"
+  | ThisKeyword -> "this"
+  | TrueKeyword -> "true"
+  | VarKeyword -> "var"
+  | WhileKeyword -> "while"
+
 type token_type =
   | LeftParen
   | RightParen
@@ -80,6 +99,32 @@ type token_type =
   | Identifier of string
   | Reserved of reserved
   | Eof
+
+let pretty_print_tt = function
+  | LeftParen -> "("
+  | RightParen -> ")"
+  | LeftBrace -> "{"
+  | RightBrace -> "}"
+  | Comma -> ","
+  | Dot -> "."
+  | Minus -> "-"
+  | Plus -> "+"
+  | Semicolon -> ";"
+  | Star -> "*"
+  | BangEqual -> "!="
+  | Bang -> "!"
+  | Equal -> "="
+  | EqualEqual -> "=="
+  | Less -> "<"
+  | LessEqual -> "<="
+  | Greater -> ">"
+  | GreaterEqual -> ">="
+  | Slash -> "/"
+  | Str str -> str
+  | Number num -> Common.float_to_string num
+  | Identifier name -> name
+  | Reserved r -> pretty_print_reserved r
+  | Eof -> ""
 
 let tt_string (tt : token_type) : string =
   match tt with
