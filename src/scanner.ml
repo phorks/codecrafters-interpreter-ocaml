@@ -111,9 +111,7 @@ let tt_string (tt : token_type) : string =
 let tt_literal (tt : token_type) : string =
   match tt with
   | Str str -> str
-  | Number num ->
-      if Float.is_integer num then Printf.sprintf "%.1f" num
-      else Printf.sprintf "%.15g" num
+  | Number num -> Common.float_to_string num
   | _ -> "null"
 
 type token = { tt : token_type; line : int; lexeme : string }
