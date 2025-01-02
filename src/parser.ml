@@ -62,7 +62,7 @@ let rec parse_equality seq =
         let* right, rest = parse_comparison (seq_tl seq) in
         let expr = Binary (op, left, right) in
         aux rest expr
-    | None -> Some (left, rest)
+    | None -> Some (left, seq)
   in
   aux rest expr
 
@@ -74,7 +74,7 @@ and parse_comparison seq =
         let* right, rest = parse_term (seq_tl seq) in
         let expr = Binary (op, left, right) in
         aux rest expr
-    | None -> Some (left, rest)
+    | None -> Some (left, seq)
   in
   aux rest expr
 
@@ -86,7 +86,7 @@ and parse_term seq =
         let* right, rest = parse_factor (seq_tl seq) in
         let expr = Binary (op, left, right) in
         aux rest expr
-    | None -> Some (left, rest)
+    | None -> Some (left, seq)
   in
   aux rest expr
 
@@ -98,7 +98,7 @@ and parse_factor seq =
         let* right, rest = parse_unary (seq_tl seq) in
         let expr = Binary (op, left, right) in
         aux rest expr
-    | None -> Some (left, rest)
+    | None -> Some (left, seq)
   in
   aux rest expr
 
@@ -118,6 +118,12 @@ and parse_primary seq =
       | Reserved NilKeyword
       | Number _ | Str _ ->
           Some (Literal hd, seq_tl seq)
+      | LeftParen -> (
+          let* inner, rest = parse_equality (seq_tl seq) in
+          let* hd = seq_hd_opt rest in
+          match hd.tt with
+          | RightParen -> Some (Grouping inner, seq_tl rest)
+          | _ -> None)
       | _ -> None)
   | None -> None
 
