@@ -124,7 +124,7 @@ let pretty_print_tt = function
   | Number num -> Common.float_to_string num
   | Identifier name -> name
   | Reserved r -> pretty_print_reserved r
-  | Eof -> ""
+  | Eof -> "eof"
 
 let tt_string (tt : token_type) : string =
   match tt with

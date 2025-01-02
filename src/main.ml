@@ -35,7 +35,7 @@ let parse file_contents =
   Option.bind (map_tokens tokens) (fun tokens ->
       let x = Parser.parse_expr ((List.to_seq tokens) ()) in
       match x with
-      | Some expr ->
+      | Some (expr, _) ->
           Printf.printf "%s" (Parser.pretty_print expr);
           None
       | None ->
