@@ -110,20 +110,24 @@ module Scanner : SCANNER = struct
   let report_error msg line rest =
     { token = Error { msg; line }; rest = Some rest }
 
-  let match_string_literal seq =
-    let rec aux seq literal =
+  let match_string_literal seq line =
+    let rec aux seq literal line =
       match seq () with
-      | Seq.Nil -> (None, seq)
+      | Seq.Nil -> (None, seq, line)
       | Seq.Cons (hd, tl) -> (
-          if hd == '"' then (Some literal, tl)
+          if hd == '"' then (Some literal, tl, line)
           else
-            match aux tl (literal ^ Char.escaped hd) with
-            | None, tl' -> (None, tl')
-            | Some s, tl' -> (Some s, tl'))
+            let rest, line =
+              if hd == '\n' then (literal, line + 1)
+              else (literal ^ Char.escaped hd, line)
+            in
+            match aux tl rest line with
+            | None, tl', line' -> (None, tl', line')
+            | Some s, tl', line' -> (Some s, tl', line'))
     in
-    aux seq String.empty
+    aux seq String.empty line
 
-  let match_number_literal seq first_digit line =
+  let report_number_literal seq first_digit line =
     let rec aux seq literal saw_point =
       match seq () with
       | Seq.Nil -> (literal, seq)
@@ -167,17 +171,17 @@ module Scanner : SCANNER = struct
                   (Seq.drop 1 (Seq.drop_while (fun ch -> ch <> '\n') tl'))
                   (line + 1))
         | '"' -> (
-            let literal, tl' = match_string_literal tl in
+            let literal, tl', line' = match_string_literal tl line in
             match literal with
             | None -> report_error "Unterminated string." line tl'
             | Some literal ->
-                report_ok (Str literal) line
+                report_ok (Str literal) line'
                   (Printf.sprintf "\"%s\"" literal)
                   tl')
         | ' ' | '\r' | '\t' -> advance_aux tl line
         | '\n' -> advance_aux tl (line + 1)
         | ch ->
-            if is_digit ch then match_number_literal tl ch line
+            if is_digit ch then report_number_literal tl ch line
             else
               report_error
                 (Printf.sprintf "Unexpected character: %c" hd)
