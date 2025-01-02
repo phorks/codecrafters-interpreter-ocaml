@@ -135,7 +135,7 @@ module Scanner : SCANNER = struct
           if is_digit hd then aux tl (literal ^ Char.escaped hd) saw_point
           else if hd == '.' && not saw_point then
             aux tl (literal ^ Char.escaped hd) true
-          else (literal, tl)
+          else (literal, seq)
     in
     let literal, seq' = aux seq (Char.escaped first_digit) false in
     {
