@@ -1,3 +1,60 @@
+type reserved =
+  | AndKeyword
+  | ClassKeyword
+  | ElseKeyword
+  | FalseKeyword
+  | ForKeyword
+  | FunKeyword
+  | IfKeyword
+  | NilKeyword
+  | OrKeyword
+  | PrintKeyword
+  | ReturnKeyword
+  | SuperKeyword
+  | ThisKeyword
+  | TrueKeyword
+  | VarKeyword
+  | WhileKeyword
+
+let reserved_to_string r =
+  match r with
+  | AndKeyword -> "and"
+  | ClassKeyword -> "class"
+  | ElseKeyword -> "else"
+  | FalseKeyword -> "false"
+  | ForKeyword -> "for"
+  | FunKeyword -> "fun"
+  | IfKeyword -> "if"
+  | NilKeyword -> "nil"
+  | OrKeyword -> "or"
+  | PrintKeyword -> "print"
+  | ReturnKeyword -> "return"
+  | SuperKeyword -> "super"
+  | ThisKeyword -> "this"
+  | TrueKeyword -> "true"
+  | VarKeyword -> "var"
+  | WhileKeyword -> "while"
+
+let reserved_of_string_opt s =
+  match s with
+  | "and" -> Some AndKeyword
+  | "class" -> Some ClassKeyword
+  | "else" -> Some ElseKeyword
+  | "false" -> Some FalseKeyword
+  | "for" -> Some ForKeyword
+  | "fun" -> Some FunKeyword
+  | "if" -> Some IfKeyword
+  | "nil" -> Some NilKeyword
+  | "or" -> Some OrKeyword
+  | "print" -> Some PrintKeyword
+  | "return" -> Some ReturnKeyword
+  | "super" -> Some SuperKeyword
+  | "this" -> Some ThisKeyword
+  | "true" -> Some TrueKeyword
+  | "var" -> Some VarKeyword
+  | "while" -> Some WhileKeyword
+  | _ -> None
+
 type token_type =
   | LeftParen
   | RightParen
@@ -21,6 +78,7 @@ type token_type =
   | Str of string
   | Number of float
   | Identifier of string
+  | Reserved of reserved
   | Eof
 
 let tt_string (tt : token_type) : string =
@@ -47,6 +105,7 @@ let tt_string (tt : token_type) : string =
   | Str _ -> "STRING"
   | Number _ -> "NUMBER"
   | Identifier _ -> "IDENTIFIER"
+  | Reserved r -> reserved_to_string r
   | Eof -> "EOF"
 
 let tt_literal (tt : token_type) : string =
@@ -149,7 +208,7 @@ module Scanner : SCANNER = struct
       rest = Some seq';
     }
 
-  let report_identifier seq first_letter line =
+  let report_identifier_or_reserved seq first_letter line =
     let rec aux seq name =
       match seq () with
       | Seq.Nil -> (name, seq)
@@ -157,10 +216,12 @@ module Scanner : SCANNER = struct
           if is_alphanumeric hd then aux tl (concat name hd) else (name, seq)
     in
     let name, seq' = aux seq (Char.escaped first_letter) in
-    {
-      token = Ok { tt = Identifier name; lexeme = name; line };
-      rest = Some seq';
-    }
+    let tt =
+      match reserved_of_string_opt name with
+      | None -> Identifier name
+      | Some r -> Reserved r
+    in
+    { token = Ok { tt; lexeme = name; line }; rest = Some seq' }
 
   let rec advance_aux seq line : advance_result =
     match seq () with
@@ -200,7 +261,7 @@ module Scanner : SCANNER = struct
         | '\n' -> advance_aux tl (line + 1)
         | ch ->
             if is_digit ch then report_number_literal tl ch line
-            else if is_alpha ch then report_identifier tl ch line
+            else if is_alpha ch then report_identifier_or_reserved tl ch line
             else
               report_error
                 (Printf.sprintf "Unexpected character: %c" hd)
