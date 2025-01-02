@@ -164,5 +164,5 @@ module Scanner : SCANNER = struct
           (List.(res.token :: rest'), Result.is_ok res.token && is_rest_ok)
     in
     let l, is_ok = scan_aux seq 1 in
-    (List.rev l, if is_ok then Successful else HadError)
+    (l, if is_ok then Successful else HadError)
 end
