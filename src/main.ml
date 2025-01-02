@@ -4,16 +4,16 @@ let tokenize file_contents =
   let rec aux (tokens : token_result List.t) =
     match tokens with
     | List.[] -> ()
-    | List.(hd :: tl) -> (
-        match hd with
+    | List.(hd :: tl) ->
+        (match hd with
         | Error err ->
-            Printf.eprintf "[line %d] Error: %s\n" err.line err.msg;
+            Printf.printf "[line %d] Error: %s\n" err.line err.msg;
             ()
         | Ok token ->
             Printf.printf "%s %s %s\n" (tt_string token.tt) token.lexeme
               (tt_literal token.tt);
-            aux tl;
-            ())
+            ());
+        aux tl
   in
   let scanner = Scanner.scanner file_contents in
   let tokens, result = Scanner.scan scanner in
