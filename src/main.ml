@@ -32,15 +32,23 @@ let rec map_tokens tokens =
 let parse file_contents =
   let scanner = Scanner.scanner file_contents in
   let tokens, _ = Scanner.scan scanner in
-  Option.bind (map_tokens tokens) (fun tokens ->
+  match map_tokens tokens with
+  | Some tokens -> (
       let x = Parser.parse_expr ((List.to_seq tokens) ()) in
       match x with
-      | Some (expr, _) ->
-          Printf.printf "%s" (Parser.pretty_print expr);
-          None
-      | None ->
-          Printf.eprintf "failed";
-          None)
+      | Ok (expr, _) ->
+          Printf.printf "%s\n" (Parser.pretty_print expr);
+          true
+      | Error err ->
+          let line, at_msg =
+            match err with
+            | Some token -> (token.line, token_error_at_msg token)
+            | None -> (-1, "end")
+          in
+          Printf.eprintf "[line %d] Error at %s: Expect expression.\n" line
+            at_msg;
+          false)
+  | None -> false
 
 let () =
   if Array.length Sys.argv < 3 then (

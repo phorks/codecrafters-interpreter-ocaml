@@ -124,7 +124,7 @@ let pretty_print_tt = function
   | Number num -> Common.float_to_string num
   | Identifier name -> name
   | Reserved r -> pretty_print_reserved r
-  | Eof -> "eof"
+  | Eof -> ""
 
 let tt_string (tt : token_type) : string =
   match tt with
@@ -166,6 +166,9 @@ type token_result = (token, lexical_error) result
 
 let token_result_line (res : token_result) =
   match res with Error err -> err.line | Ok token -> token.line
+
+let token_error_at_msg token : string =
+  match token.tt with Eof -> "end" | _ -> Printf.sprintf "'%s'" token.lexeme
 
 module type SCANNER = sig
   type input

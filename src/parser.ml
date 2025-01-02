@@ -23,6 +23,7 @@ let seq_hd_opt seq =
 
 let seq_tl seq = match seq with Seq.Nil -> Seq.Nil | Seq.Cons (_, tl) -> tl ()
 let ( let* ) = Option.bind
+let ( let+ ) = Result.bind
 
 let match_equality_op stream =
   let* hd = seq_hd_opt stream in
@@ -54,59 +55,59 @@ let print_hd stream =
   | None -> Printf.printf "None"
 
 let rec parse_equality seq =
-  let* expr, rest = parse_comparison seq in
+  let+ expr, rest = parse_comparison seq in
 
   let rec aux seq left =
     match match_equality_op seq with
     | Some op ->
-        let* right, rest = parse_comparison (seq_tl seq) in
+        let+ right, rest = parse_comparison (seq_tl seq) in
         let expr = Binary (op, left, right) in
         aux rest expr
-    | None -> Some (left, seq)
+    | None -> Ok (left, seq)
   in
   aux rest expr
 
 and parse_comparison seq =
-  let* expr, rest = parse_term seq in
+  let+ expr, rest = parse_term seq in
   let rec aux seq left =
     match match_comparison_op seq with
     | Some op ->
-        let* right, rest = parse_term (seq_tl seq) in
+        let+ right, rest = parse_term (seq_tl seq) in
         let expr = Binary (op, left, right) in
         aux rest expr
-    | None -> Some (left, seq)
+    | None -> Ok (left, seq)
   in
   aux rest expr
 
 and parse_term seq =
-  let* expr, rest = parse_factor seq in
+  let+ expr, rest = parse_factor seq in
   let rec aux seq left =
     match match_term_op seq with
     | Some op ->
-        let* right, rest = parse_factor (seq_tl seq) in
+        let+ right, rest = parse_factor (seq_tl seq) in
         let expr = Binary (op, left, right) in
         aux rest expr
-    | None -> Some (left, seq)
+    | None -> Ok (left, seq)
   in
   aux rest expr
 
 and parse_factor seq =
-  let* expr, rest = parse_unary seq in
+  let+ expr, rest = parse_unary seq in
   let rec aux seq left =
     match match_factor_op seq with
     | Some op ->
-        let* right, rest = parse_unary (seq_tl seq) in
+        let+ right, rest = parse_unary (seq_tl seq) in
         let expr = Binary (op, left, right) in
         aux rest expr
-    | None -> Some (left, seq)
+    | None -> Ok (left, seq)
   in
   aux rest expr
 
 and parse_unary seq =
   match match_unary_op seq with
   | Some op ->
-      let* right, rest = parse_unary (seq_tl seq) in
-      Some (Unary (op, right), rest)
+      let+ right, rest = parse_unary (seq_tl seq) in
+      Ok (Unary (op, right), rest)
   | None -> parse_primary seq
 
 and parse_primary seq =
@@ -117,14 +118,14 @@ and parse_primary seq =
       | Reserved TrueKeyword
       | Reserved NilKeyword
       | Number _ | Str _ ->
-          Some (Literal hd, seq_tl seq)
+          Ok (Literal hd, seq_tl seq)
       | LeftParen -> (
-          let* inner, rest = parse_equality (seq_tl seq) in
-          let* hd = seq_hd_opt rest in
+          let+ inner, rest = parse_equality (seq_tl seq) in
+          let+ hd = Option.to_result (seq_hd_opt rest) ~none:None in
           match hd.tt with
-          | RightParen -> Some (Grouping inner, seq_tl rest)
-          | _ -> None)
-      | _ -> None)
-  | None -> None
+          | RightParen -> Ok (Grouping inner, seq_tl rest)
+          | _ -> Error (Some hd))
+      | _ -> Error (Some hd))
+  | None -> Error None
 
 let parse_expr stream = parse_equality stream
