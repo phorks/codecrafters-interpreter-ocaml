@@ -154,7 +154,7 @@ module Scanner : SCANNER = struct
       match seq () with
       | Seq.Nil -> (name, seq)
       | Seq.Cons (hd, tl) ->
-          if is_alphanumeric hd then aux tl (concat name hd) else (name, tl)
+          if is_alphanumeric hd then aux tl (concat name hd) else (name, seq)
     in
     let name, seq' = aux seq (Char.escaped first_letter) in
     {
