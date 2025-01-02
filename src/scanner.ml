@@ -115,14 +115,11 @@ module Scanner : SCANNER = struct
       match seq () with
       | Seq.Nil -> (None, seq, line)
       | Seq.Cons (hd, tl) -> (
-          if hd == '\t' then (
-            Printf.eprintf "found it";
-            ());
           if hd == '"' then (Some literal, tl, line)
           else
             let rest, line =
               if hd == '\n' then (literal, line + 1)
-              else (literal ^ Char.escaped hd, line)
+              else (literal ^ String.make 1 hd, line)
             in
             match aux tl rest line with
             | None, tl', line' -> (None, tl', line')
