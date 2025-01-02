@@ -71,7 +71,7 @@ let () =
         In_channel.with_open_text filename In_channel.input_all
       in
       let result = parse file_contents in
-      if result then exit 0 else exit 1
+      if result then exit 0 else exit 65
   | _ ->
       Printf.eprintf "Unknown command: %s\n" command;
       exit 1
