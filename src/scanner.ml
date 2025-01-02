@@ -157,7 +157,7 @@ module Scanner : SCANNER = struct
         | '.' -> report_single Dot line hd tl
         | '-' -> report_single Minus line hd tl
         | '+' -> report_single Plus line hd tl
-        | ';' -> report_single Comma line hd tl
+        | ';' -> report_single Semicolon line hd tl
         | '*' -> report_single Star line hd tl
         | '!' -> report_double tl hd '=' Bang BangEqual line
         | '=' -> report_double tl hd '=' Equal EqualEqual line
