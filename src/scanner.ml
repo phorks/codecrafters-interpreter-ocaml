@@ -42,7 +42,7 @@ let tt_string (tt : token_type) : string =
   | LessEqual -> "LESS_EQUAL"
   | Greater -> "GREATER"
   | GreaterEqual -> "GREATER_EQUAL"
-  | Slash -> "Slash"
+  | Slash -> "SLASH"
   | Str _ -> "STRING"
   | Number _ -> "NUMBER"
   | Eof -> "EOF"
