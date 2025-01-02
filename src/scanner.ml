@@ -19,6 +19,7 @@ type token_type =
   | GreaterEqual
   | Slash
   | Str of string
+  | Number of float
   | Eof
 
 let tt_string (tt : token_type) : string =
@@ -43,10 +44,16 @@ let tt_string (tt : token_type) : string =
   | GreaterEqual -> "GREATER_EQUAL"
   | Slash -> "Slash"
   | Str _ -> "STRING"
+  | Number _ -> "NUMBER"
   | Eof -> "EOF"
 
 let tt_literal (tt : token_type) : string =
-  match tt with Str str -> str | _ -> "null"
+  match tt with
+  | Str str -> str
+  | Number num ->
+      if Float.is_integer num then Printf.sprintf "%.1f" num
+      else Printf.sprintf "%.15g" num
+  | _ -> "null"
 
 type token = { tt : token_type; line : int; lexeme : string }
 type lexical_error = { msg : string; line : int }
@@ -68,6 +75,7 @@ module Scanner : SCANNER = struct
   type advance_result = { token : token_result; rest : char Seq.t option }
 
   let scanner str = String.to_seq str
+  let is_digit = function '0' .. '9' -> true | _ -> false
 
   let match_double rest next =
     match rest () with
@@ -115,6 +123,23 @@ module Scanner : SCANNER = struct
     in
     aux seq String.empty
 
+  let match_number_literal seq first_digit line =
+    let rec aux seq literal saw_point =
+      match seq () with
+      | Seq.Nil -> (literal, seq)
+      | Seq.Cons (hd, tl) ->
+          if is_digit hd then aux tl (literal ^ Char.escaped hd) saw_point
+          else if hd == '.' && not saw_point then
+            aux tl (literal ^ Char.escaped hd) true
+          else (literal, tl)
+    in
+    let literal, seq' = aux seq (Char.escaped first_digit) false in
+    {
+      token =
+        Ok { tt = Number (Float.of_string literal); lexeme = literal; line };
+      rest = Some seq';
+    }
+
   let rec advance_aux seq line : advance_result =
     match seq () with
     | Seq.Nil -> { token = Ok { tt = Eof; lexeme = ""; line }; rest = None }
@@ -151,8 +176,12 @@ module Scanner : SCANNER = struct
                   tl')
         | ' ' | '\r' | '\t' -> advance_aux tl line
         | '\n' -> advance_aux tl (line + 1)
-        | _ ->
-            report_error (Printf.sprintf "Unexpected character: %c" hd) line tl)
+        | ch ->
+            if is_digit ch then match_number_literal tl ch line
+            else
+              report_error
+                (Printf.sprintf "Unexpected character: %c" hd)
+                line tl)
 
   let scan seq =
     let rec scan_aux seq line =
