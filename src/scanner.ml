@@ -20,6 +20,7 @@ type token_type =
   | Slash
   | Str of string
   | Number of float
+  | Identifier of string
   | Eof
 
 let tt_string (tt : token_type) : string =
@@ -45,6 +46,7 @@ let tt_string (tt : token_type) : string =
   | Slash -> "SLASH"
   | Str _ -> "STRING"
   | Number _ -> "NUMBER"
+  | Identifier _ -> "IDENTIFIER"
   | Eof -> "EOF"
 
 let tt_literal (tt : token_type) : string =
@@ -76,6 +78,9 @@ module Scanner : SCANNER = struct
 
   let scanner str = String.to_seq str
   let is_digit = function '0' .. '9' -> true | _ -> false
+  let is_alpha = function 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false
+  let is_alphanumeric ch = is_alpha ch || is_digit ch
+  let concat str ch = str ^ String.make 1 ch
 
   let match_double rest next =
     match rest () with
@@ -144,6 +149,19 @@ module Scanner : SCANNER = struct
       rest = Some seq';
     }
 
+  let report_identifier seq first_letter line =
+    let rec aux seq name =
+      match seq () with
+      | Seq.Nil -> (name, seq)
+      | Seq.Cons (hd, tl) ->
+          if is_alphanumeric hd then aux tl (concat name hd) else (name, tl)
+    in
+    let name, seq' = aux seq (Char.escaped first_letter) in
+    {
+      token = Ok { tt = Identifier name; lexeme = name; line };
+      rest = Some seq';
+    }
+
   let rec advance_aux seq line : advance_result =
     match seq () with
     | Seq.Nil -> { token = Ok { tt = Eof; lexeme = ""; line }; rest = None }
@@ -182,6 +200,7 @@ module Scanner : SCANNER = struct
         | '\n' -> advance_aux tl (line + 1)
         | ch ->
             if is_digit ch then report_number_literal tl ch line
+            else if is_alpha ch then report_identifier tl ch line
             else
               report_error
                 (Printf.sprintf "Unexpected character: %c" hd)
