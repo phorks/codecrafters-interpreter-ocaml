@@ -4,17 +4,17 @@ module Env = Evaluation.Environment
 let exec_stmt stmt env =
   match stmt with
   | STExpression expr ->
-      let+ _ = Evaluation.eval expr env in
+      let+ _, env = Evaluation.eval expr env in
       Ok env
   | STPrint expr ->
-      let+ v = Evaluation.eval expr env in
+      let+ v, env = Evaluation.eval expr env in
       Printf.printf "%s\n" (Evaluation.pretty_print v);
       Ok env
   | STVarDecl (name, init) ->
-      let+ v =
+      let+ v, env =
         match init with
         | Some init -> Evaluation.eval init env
-        | None -> Ok Evaluation.VNil
+        | None -> Ok (Evaluation.VNil, env)
       in
       Ok (Env.define name v env)
 

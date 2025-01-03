@@ -17,7 +17,7 @@ type literal =
   | LBool of bool
   | LNum of float
   | LStr of string
-  | LIdent of string
+  | LVar of string
 
 module ExpToken : sig
   type 'a t = { token : Scanner.token; kind : 'a }
@@ -31,6 +31,7 @@ type exp =
   | Unary of unop ExpToken.t * exp
   | Binary of binop ExpToken.t * exp * exp
   | Grouping of exp
+  | Assignment of string * exp
 
 val pretty_print : exp -> string
 

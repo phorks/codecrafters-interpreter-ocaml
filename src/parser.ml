@@ -19,7 +19,7 @@ type literal =
   | LBool of bool
   | LNum of float
   | LStr of string
-  | LIdent of string
+  | LVar of string
 
 module ExpToken = struct
   type 'a t = { token : token; kind : 'a }
@@ -33,6 +33,7 @@ type exp =
   | Unary of unop ExpToken.t * exp
   | Binary of binop ExpToken.t * exp * exp
   | Grouping of exp
+  | Assignment of string * exp
 
 let rec pretty_print exp =
   match exp with
@@ -43,6 +44,8 @@ let rec pretty_print exp =
       Printf.sprintf "(%s %s %s)" (ExpToken.pretty_print op) (pretty_print x)
         (pretty_print y)
   | Grouping e -> Printf.sprintf "(group %s)" (pretty_print e)
+  | Assignment (name, expr) ->
+      Printf.sprintf "(= %s %s)" name (pretty_print expr)
 
 type syntax_error = SyntaxError of (token option * string)
 
@@ -62,6 +65,10 @@ let seq_hd_opt seq =
 let seq_tl seq = match seq with Seq.Nil -> Seq.Nil | Seq.Cons (_, tl) -> tl ()
 let ( let* ) = Option.bind
 let ( let+ ) = Result.bind
+
+let match_assignment_op seq =
+  let* hd = seq_hd_opt seq in
+  match hd.tt with Equal -> Some hd | _ -> None
 
 let match_equality_op seq =
   let* hd = seq_hd_opt seq in
@@ -100,7 +107,20 @@ let match_unary_op seq =
   | Minus -> Some (ExpToken.exp_token hd NegUnop)
   | _ -> None
 
-let rec parse_equality seq =
+let rec parse_assignment seq =
+  let+ left, rest = parse_equality seq in
+  match match_assignment_op rest with
+  | Some op -> (
+      let+ right, rest = parse_assignment (seq_tl rest) in
+      match left with
+      | Literal l -> (
+          match l.kind with
+          | LVar name -> Ok (Assignment (name, right), rest)
+          | _ -> Error (SyntaxError (Some op, "Invalid assignment target.")))
+      | _ -> Error (SyntaxError (Some op, "Invalid assignment target.")))
+  | None -> Ok (left, rest)
+
+and parse_equality seq =
   let+ expr, rest = parse_comparison seq in
 
   let rec aux seq left =
@@ -168,9 +188,9 @@ and parse_primary seq =
           Ok (Literal (ExpToken.exp_token hd LNil), seq_tl seq)
       | Num num -> Ok (Literal (ExpToken.exp_token hd (LNum num)), seq_tl seq)
       | Str s -> Ok (Literal (ExpToken.exp_token hd (LStr s)), seq_tl seq)
-      | Ident s -> Ok (Literal (ExpToken.exp_token hd (LIdent s)), seq_tl seq)
+      | Ident s -> Ok (Literal (ExpToken.exp_token hd (LVar s)), seq_tl seq)
       | LeftParen -> (
-          let+ inner, rest = parse_equality (seq_tl seq) in
+          let+ inner, rest = parse_assignment (seq_tl seq) in
           let+ hd =
             Option.to_result (seq_hd_opt rest)
               ~none:(SyntaxError (None, "Expect expression"))
@@ -181,4 +201,4 @@ and parse_primary seq =
       | _ -> Error (SyntaxError (Some hd, "Expect expression")))
   | None -> Error (SyntaxError (None, "Expect expression"))
 
-let parse_expr stream = parse_equality stream
+let parse_expr stream = parse_assignment stream

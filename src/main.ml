@@ -80,7 +80,7 @@ let evaluate file_contents =
   let+ expr = parse tokens in
   let env = Evaluation.Environment.empty in
   match Evaluation.eval expr env with
-  | Ok v ->
+  | Ok (v, _) ->
       Printf.printf "%s\n" (Evaluation.pretty_print v);
       Ok ()
   | Error err ->

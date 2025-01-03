@@ -13,4 +13,6 @@ module Environment : sig
 end
 
 val pretty_print : value -> string
-val eval : Parser.exp -> Environment.t -> (value, runtime_error) result
+
+val eval :
+  Parser.exp -> Environment.t -> (value * Environment.t, runtime_error) result
