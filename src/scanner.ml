@@ -95,8 +95,8 @@ type token_type =
   | GreaterEqual
   | Slash
   | Str of string
-  | Number of float
-  | Identifier of string
+  | Num of float
+  | Ident of string
   | Reserved of reserved
   | Eof
 
@@ -121,8 +121,8 @@ let pretty_print_tt = function
   | GreaterEqual -> ">="
   | Slash -> "/"
   | Str str -> str
-  | Number num -> Common.float_to_string num
-  | Identifier name -> name
+  | Num num -> Common.float_to_string num
+  | Ident name -> name
   | Reserved r -> pretty_print_reserved r
   | Eof -> ""
 
@@ -148,21 +148,24 @@ let tt_string (tt : token_type) : string =
   | GreaterEqual -> "GREATER_EQUAL"
   | Slash -> "SLASH"
   | Str _ -> "STRING"
-  | Number _ -> "NUMBER"
-  | Identifier _ -> "IDENTIFIER"
+  | Num _ -> "NUMBER"
+  | Ident _ -> "IDENTIFIER"
   | Reserved r -> reserved_to_string r
   | Eof -> "EOF"
 
 let tt_literal (tt : token_type) : string =
   match tt with
   | Str str -> str
-  | Number num -> Common.float_to_string num
+  | Num num -> Common.float_to_string num
   | _ -> "null"
 
 type token = { tt : token_type; line : int; lexeme : string }
 type lexical_error = { msg : string; line : int }
 type scan_result = HadError | Successful
 type token_result = (token, lexical_error) result
+
+let lexical_error_to_string err =
+  Printf.sprintf "[line %d] Error: %s\n" err.line err.msg
 
 let token_result_line (res : token_result) =
   match res with Error err -> err.line | Ok token -> token.line
@@ -249,8 +252,7 @@ module Scanner : SCANNER = struct
     in
     let literal, seq' = aux seq (Char.escaped first_digit) false in
     {
-      token =
-        Ok { tt = Number (Float.of_string literal); lexeme = literal; line };
+      token = Ok { tt = Num (Float.of_string literal); lexeme = literal; line };
       rest = Some seq';
     }
 
@@ -264,7 +266,7 @@ module Scanner : SCANNER = struct
     let name, seq' = aux seq (Char.escaped first_letter) in
     let tt =
       match reserved_of_string_opt name with
-      | None -> Identifier name
+      | None -> Ident name
       | Some r -> Reserved r
     in
     { token = Ok { tt; lexeme = name; line }; rest = Some seq' }

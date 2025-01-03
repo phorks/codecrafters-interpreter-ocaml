@@ -1,22 +1,55 @@
 open Scanner
 
+type unop = NegUnop | NotUnop
+
+type binop =
+  | PlusBinop
+  | MinusBinop
+  | StarBinop
+  | SlashBinop
+  | EqBinop
+  | NeqBinop
+  | LtBinop
+  | LeqBinop
+  | GtBinop
+  | GeqBinop
+
+type literal = LNil | LBool of bool | LNum of float | LStr of string
+
+module ExpToken = struct
+  type 'a t = { token : token; kind : 'a }
+
+  let exp_token token kind = { token; kind }
+  let pretty_print exp_token = pretty_print_tt exp_token.token.tt
+end
+
 type exp =
-  | Literal of token
-  | Unary of token * exp
-  | Binary of token * exp * exp
+  | Literal of literal ExpToken.t
+  | Unary of unop ExpToken.t * exp
+  | Binary of binop ExpToken.t * exp * exp
   | Grouping of exp
 
 let rec pretty_print exp =
   match exp with
-  | Literal l -> pretty_print_tt l.tt
+  | Literal l -> ExpToken.pretty_print l
   | Unary (op, x) ->
-      Printf.sprintf "(%s %s)" (pretty_print_tt op.tt) (pretty_print x)
+      Printf.sprintf "(%s %s)" (ExpToken.pretty_print op) (pretty_print x)
   | Binary (op, x, y) ->
-      Printf.sprintf "(%s %s %s)" (pretty_print_tt op.tt) (pretty_print x)
+      Printf.sprintf "(%s %s %s)" (ExpToken.pretty_print op) (pretty_print x)
         (pretty_print y)
   | Grouping e -> Printf.sprintf "(group %s)" (pretty_print e)
 
-type stream = token Seq.t
+type syntax_error = SEExpressionExpected of token option
+
+let syntax_error_to_string err =
+  match err with
+  | SEExpressionExpected err ->
+      let line, at_msg =
+        match err with
+        | Some token -> (token.line, token_error_at_msg token)
+        | None -> (-1, "end")
+      in
+      Printf.sprintf "[line %d] Error at %s: Expect expression.\n" line at_msg
 
 let seq_hd_opt seq =
   match seq with Seq.Nil -> None | Seq.Cons (hd, _) -> Some hd
@@ -25,34 +58,42 @@ let seq_tl seq = match seq with Seq.Nil -> Seq.Nil | Seq.Cons (_, tl) -> tl ()
 let ( let* ) = Option.bind
 let ( let+ ) = Result.bind
 
-let match_equality_op stream =
-  let* hd = seq_hd_opt stream in
-  match hd.tt with EqualEqual | BangEqual -> Some hd | _ -> None
-
-let match_comparison_op stream =
-  let* hd = seq_hd_opt stream in
+let match_equality_op seq =
+  let* hd = seq_hd_opt seq in
   match hd.tt with
-  | Less | LessEqual | Greater | GreaterEqual -> Some hd
+  | EqualEqual -> Some (ExpToken.exp_token hd EqBinop)
+  | BangEqual -> Some (ExpToken.exp_token hd NeqBinop)
   | _ -> None
 
-let match_term_op stream =
-  let* hd = seq_hd_opt stream in
-  match hd.tt with Minus | Plus -> Some hd | _ -> None
+let match_comparison_op seq =
+  let* hd = seq_hd_opt seq in
+  match hd.tt with
+  | Less -> Some (ExpToken.exp_token hd LtBinop)
+  | LessEqual -> Some (ExpToken.exp_token hd LeqBinop)
+  | Greater -> Some (ExpToken.exp_token hd GtBinop)
+  | GreaterEqual -> Some (ExpToken.exp_token hd GeqBinop)
+  | _ -> None
 
-let match_factor_op stream =
-  let* hd = seq_hd_opt stream in
-  match hd.tt with Star | Slash -> Some hd | _ -> None
+let match_term_op seq =
+  let* hd = seq_hd_opt seq in
+  match hd.tt with
+  | Minus -> Some (ExpToken.exp_token hd MinusBinop)
+  | Plus -> Some (ExpToken.exp_token hd PlusBinop)
+  | _ -> None
 
-let match_unary_op stream =
-  let* hd = seq_hd_opt stream in
-  match hd.tt with Bang | Minus -> Some hd | _ -> None
+let match_factor_op seq =
+  let* hd = seq_hd_opt seq in
+  match hd.tt with
+  | Star -> Some (ExpToken.exp_token hd StarBinop)
+  | Minus -> Some (ExpToken.exp_token hd SlashBinop)
+  | _ -> None
 
-let print_hd stream =
-  match seq_hd_opt stream with
-  | Some hd ->
-      let _ = Printf.printf "%s" (pretty_print_tt hd.tt) in
-      ()
-  | None -> Printf.printf "None"
+let match_unary_op seq =
+  let* hd = seq_hd_opt seq in
+  match hd.tt with
+  | Bang -> Some (ExpToken.exp_token hd NotUnop)
+  | Minus -> Some (ExpToken.exp_token hd NegUnop)
+  | _ -> None
 
 let rec parse_equality seq =
   let+ expr, rest = parse_comparison seq in
@@ -114,18 +155,23 @@ and parse_primary seq =
   match seq_hd_opt seq with
   | Some hd -> (
       match hd.tt with
-      | Reserved FalseKeyword
-      | Reserved TrueKeyword
-      | Reserved NilKeyword
-      | Number _ | Str _ ->
-          Ok (Literal hd, seq_tl seq)
+      | Reserved FalseKeyword ->
+          Ok (Literal (ExpToken.exp_token hd (LBool false)), seq_tl seq)
+      | Reserved TrueKeyword ->
+          Ok (Literal (ExpToken.exp_token hd (LBool true)), seq_tl seq)
+      | Reserved NilKeyword ->
+          Ok (Literal (ExpToken.exp_token hd LNil), seq_tl seq)
+      | Num num -> Ok (Literal (ExpToken.exp_token hd (LNum num)), seq_tl seq)
+      | Str s -> Ok (Literal (ExpToken.exp_token hd (LStr s)), seq_tl seq)
       | LeftParen -> (
           let+ inner, rest = parse_equality (seq_tl seq) in
-          let+ hd = Option.to_result (seq_hd_opt rest) ~none:None in
+          let+ hd =
+            Option.to_result (seq_hd_opt rest) ~none:(SEExpressionExpected None)
+          in
           match hd.tt with
           | RightParen -> Ok (Grouping inner, seq_tl rest)
-          | _ -> Error (Some hd))
-      | _ -> Error (Some hd))
-  | None -> Error None
+          | _ -> Error (SEExpressionExpected (Some hd)))
+      | _ -> Error (SEExpressionExpected (Some hd)))
+  | None -> Error (SEExpressionExpected None)
 
 let parse_expr stream = parse_equality stream

@@ -1,14 +1,22 @@
 open Scanner
 
-let tokenize file_contents =
+let ( let+ ) = Result.bind
+
+type interpreter_error = IESyntaxError | IERuntimeError | IEUnknownCommand
+
+let interpreter_error_code e =
+  match e with
+  | IESyntaxError -> 65
+  | IERuntimeError -> 70
+  | IEUnknownCommand -> 1
+
+let tokenize_cmd file_contents =
   let rec aux (tokens : token_result List.t) =
     match tokens with
     | List.[] -> ()
     | List.(hd :: tl) ->
         (match hd with
-        | Error err ->
-            Printf.eprintf "[line %d] Error: %s\n" err.line err.msg;
-            ()
+        | Error err -> Printf.eprintf "%s" (lexical_error_to_string err)
         | Ok token ->
             Printf.printf "%s %s %s\n" (tt_string token.tt) token.lexeme
               (tt_literal token.tt);
@@ -18,37 +26,65 @@ let tokenize file_contents =
   let scanner = Scanner.scanner file_contents in
   let tokens, result = Scanner.scan scanner in
   aux tokens;
-  result
+  match result with Successful -> Ok () | HadError -> Error IESyntaxError
+
+let rec filter_lexical_errors tokens =
+  match tokens with
+  | List.[] -> List.[]
+  | List.(hd :: tl) -> (
+      let rest = filter_lexical_errors tl in
+      match hd with Ok _ -> rest | Error e -> List.(e :: rest))
 
 let rec map_tokens tokens =
   match tokens with
-  | List.[] -> Some List.[]
+  | List.[] -> Ok List.[]
   | List.(hd :: tl) -> (
-      match map_tokens tl with
-      | Some tl' -> (
-          match hd with Ok token -> Some List.(token :: tl') | _ -> None)
-      | None -> None)
+      match hd with
+      | Ok token -> (
+          match map_tokens tl with
+          | Ok tl' -> Ok List.(token :: tl')
+          | Error e -> Error e)
+      | Error e ->
+          let tl' = filter_lexical_errors tl in
+          Error List.(e :: tl'))
 
-let parse file_contents =
+let tokenize tokens =
+  match map_tokens tokens with
+  | Ok tokens -> Ok tokens
+  | Error lexical_errors ->
+      let _ =
+        List.map
+          (fun e -> Printf.eprintf "%s" (lexical_error_to_string e))
+          lexical_errors
+      in
+      Error IESyntaxError
+
+let parse tokens =
+  let+ tokens = tokenize tokens in
+  match Parser.parse_expr ((List.to_seq tokens) ()) with
+  | Ok (expr, _) -> Ok expr
+  | Error err ->
+      Printf.eprintf "%s" (Parser.syntax_error_to_string err);
+      Error IESyntaxError
+
+let parse_cmd file_contents =
   let scanner = Scanner.scanner file_contents in
   let tokens, _ = Scanner.scan scanner in
-  match map_tokens tokens with
-  | Some tokens -> (
-      let x = Parser.parse_expr ((List.to_seq tokens) ()) in
-      match x with
-      | Ok (expr, _) ->
-          Printf.printf "%s\n" (Parser.pretty_print expr);
-          true
-      | Error err ->
-          let line, at_msg =
-            match err with
-            | Some token -> (token.line, token_error_at_msg token)
-            | None -> (-1, "end")
-          in
-          Printf.eprintf "[line %d] Error at %s: Expect expression.\n" line
-            at_msg;
-          false)
-  | None -> false
+  let+ expr = parse tokens in
+  Printf.printf "%s\n" (Parser.pretty_print expr);
+  Ok ()
+
+let evaluate file_contents =
+  let scanner = Scanner.scanner file_contents in
+  let tokens, _ = Scanner.scan scanner in
+  let+ expr = parse tokens in
+  match Evaluation.eval expr with
+  | Ok v ->
+      Printf.printf "%s\n" (Evaluation.pretty_print v);
+      Ok ()
+  | Error err ->
+      Printf.eprintf "%s" (Evaluation.runtime_error_to_string err);
+      Error IERuntimeError
 
 let () =
   if Array.length Sys.argv < 3 then (
@@ -59,23 +95,31 @@ let () =
 
   let filename = Sys.argv.(2) in
 
-  match command with
-  | "tokenize" -> (
-      let file_contents =
-        In_channel.with_open_text filename In_channel.input_all
-      in
-      let result = tokenize file_contents in
-      match result with Successful -> exit 0 | HadError -> exit 65)
-  | "parse" ->
-      let file_contents =
-        In_channel.with_open_text filename In_channel.input_all
-      in
-      let result = parse file_contents in
-      if result then exit 0 else exit 65
-  | _ ->
-      Printf.eprintf "Unknown command: %s\n" command;
-      exit 1
+  let result =
+    match command with
+    | "tokenize" ->
+        let file_contents =
+          In_channel.with_open_text filename In_channel.input_all
+        in
+        tokenize_cmd file_contents
+    | "parse" ->
+        let file_contents =
+          In_channel.with_open_text filename In_channel.input_all
+        in
+        parse_cmd file_contents
+    | "evaluate" ->
+        let file_contents =
+          In_channel.with_open_text filename In_channel.input_all
+        in
+        evaluate file_contents
+    | _ ->
+        Printf.eprintf "Unknown command: %s\n" command;
+        Error IEUnknownCommand
+  in
 
+  match result with
+  | Ok _ -> exit 0
+  | Error e -> exit (interpreter_error_code e)
 (* let has_error = scan (String.to_seq file_contents) 1 in *)
 (* if has_error then exit 65 *)
 

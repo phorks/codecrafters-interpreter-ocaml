@@ -1,0 +1,37 @@
+type unop = NegUnop | NotUnop
+
+type binop =
+  | PlusBinop
+  | MinusBinop
+  | StarBinop
+  | SlashBinop
+  | EqBinop
+  | NeqBinop
+  | LtBinop
+  | LeqBinop
+  | GtBinop
+  | GeqBinop
+
+type literal = LNil | LBool of bool | LNum of float | LStr of string
+
+module ExpToken : sig
+  type 'a t = { token : Scanner.token; kind : 'a }
+
+  val exp_token : Scanner.token -> 'a -> 'a t
+  val pretty_print : 'a t -> string
+end
+
+type exp =
+  | Literal of literal ExpToken.t
+  | Unary of unop ExpToken.t * exp
+  | Binary of binop ExpToken.t * exp * exp
+  | Grouping of exp
+
+val pretty_print : exp -> string
+
+type syntax_error = SEExpressionExpected of Scanner.token option
+
+val syntax_error_to_string : syntax_error -> string
+
+val parse_expr :
+  Scanner.token Seq.node -> (exp * Scanner.token Seq.node, syntax_error) result
