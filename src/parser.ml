@@ -39,17 +39,17 @@ let rec pretty_print exp =
         (pretty_print y)
   | Grouping e -> Printf.sprintf "(group %s)" (pretty_print e)
 
-type syntax_error = SEExpressionExpected of token option
+type syntax_error = SyntaxError of (token option * string)
 
 let syntax_error_to_string err =
   match err with
-  | SEExpressionExpected err ->
+  | SyntaxError (token, msg) ->
       let line, at_msg =
-        match err with
+        match token with
         | Some token -> (token.line, token_error_at_msg token)
         | None -> (-1, "end")
       in
-      Printf.sprintf "[line %d] Error at %s: Expect expression.\n" line at_msg
+      Printf.sprintf "[line %d] Error at %s: %s.\n" line at_msg msg
 
 let seq_hd_opt seq =
   match seq with Seq.Nil -> None | Seq.Cons (hd, _) -> Some hd
@@ -166,12 +166,13 @@ and parse_primary seq =
       | LeftParen -> (
           let+ inner, rest = parse_equality (seq_tl seq) in
           let+ hd =
-            Option.to_result (seq_hd_opt rest) ~none:(SEExpressionExpected None)
+            Option.to_result (seq_hd_opt rest)
+              ~none:(SyntaxError (None, "Expect expression"))
           in
           match hd.tt with
           | RightParen -> Ok (Grouping inner, seq_tl rest)
-          | _ -> Error (SEExpressionExpected (Some hd)))
-      | _ -> Error (SEExpressionExpected (Some hd)))
-  | None -> Error (SEExpressionExpected None)
+          | _ -> Error (SyntaxError (Some hd, "Expect expression")))
+      | _ -> Error (SyntaxError (Some hd, "Expect expression")))
+  | None -> Error (SyntaxError (None, "Expect expression"))
 
 let parse_expr stream = parse_equality stream

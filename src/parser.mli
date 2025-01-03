@@ -29,7 +29,7 @@ type exp =
 
 val pretty_print : exp -> string
 
-type syntax_error = SEExpressionExpected of Scanner.token option
+type syntax_error = SyntaxError of (Scanner.token option * string)
 
 val syntax_error_to_string : syntax_error -> string
 

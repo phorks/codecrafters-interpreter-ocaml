@@ -86,6 +86,24 @@ let evaluate file_contents =
       Printf.eprintf "%s" (Evaluation.runtime_error_to_string err);
       Error IERuntimeError
 
+let parse_stmts tokens =
+  let+ tokens = tokenize tokens in
+  match Statements.parse (List.to_seq tokens) with
+  | Ok stmts -> Ok stmts
+  | Error err ->
+      Printf.eprintf "%s" (Parser.syntax_error_to_string err);
+      Error IESyntaxError
+
+let exec_cmd file_contents =
+  let scanner = Scanner.scanner file_contents in
+  let tokens, _ = Scanner.scan scanner in
+  let+ stmts = parse_stmts tokens in
+  match Execution.exec stmts with
+  | Ok _ -> Ok ()
+  | Error err ->
+      Printf.eprintf "%s" (Evaluation.runtime_error_to_string err);
+      Error IERuntimeError
+
 let () =
   if Array.length Sys.argv < 3 then (
     Printf.eprintf "Usage: ./your_program.sh tokenize <filename>\n";
@@ -112,6 +130,11 @@ let () =
           In_channel.with_open_text filename In_channel.input_all
         in
         evaluate file_contents
+    | "run" ->
+        let file_contents =
+          In_channel.with_open_text filename In_channel.input_all
+        in
+        exec_cmd file_contents
     | _ ->
         Printf.eprintf "Unknown command: %s\n" command;
         Error IEUnknownCommand
