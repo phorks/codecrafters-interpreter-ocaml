@@ -11,7 +11,7 @@ let pretty_print v =
   match v with
   | VNil -> "nil"
   | VBool b -> if b then "true" else "false"
-  | VNum n -> Common.float_to_string n
+  | VNum n -> Common.float_value_to_string n
   | VStr s -> s
 
 let ( let+ ) = Result.bind
