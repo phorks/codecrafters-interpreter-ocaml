@@ -60,9 +60,9 @@ let syntax_error_to_string err =
       Printf.sprintf "[line %d] Error at %s: %s.\n" line at_msg msg
 
 let seq_hd_opt seq =
-  match seq with Seq.Nil -> None | Seq.Cons (hd, _) -> Some hd
+  match seq () with Seq.Nil -> None | Seq.Cons (hd, _) -> Some hd
 
-let seq_tl seq = match seq with Seq.Nil -> Seq.Nil | Seq.Cons (_, tl) -> tl ()
+let seq_tl seq = match seq () with Seq.Nil -> seq | Seq.Cons (_, tl) -> tl
 let ( let* ) = Option.bind
 let ( let+ ) = Result.bind
 
@@ -169,7 +169,7 @@ and parse_factor seq =
   in
   aux rest expr
 
-and parse_unary seq =
+and parse_unary (seq : token Seq.t) =
   match match_unary_op seq with
   | Some op ->
       let+ right, rest = parse_unary (seq_tl seq) in

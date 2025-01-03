@@ -8,8 +8,11 @@ module Environment : sig
   type t
 
   val empty : t
+  val empty_with_parent : t -> t
   val get : string -> t -> (value, runtime_error) result
   val define : string -> value -> t -> t
+  val assign : string -> value -> t -> (t, runtime_error) result
+  val parent : t -> t option
 end
 
 val pretty_print : value -> string

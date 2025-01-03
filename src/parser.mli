@@ -40,4 +40,4 @@ type syntax_error = SyntaxError of (Scanner.token option * string)
 val syntax_error_to_string : syntax_error -> string
 
 val parse_expr :
-  Scanner.token Seq.node -> (exp * Scanner.token Seq.node, syntax_error) result
+  Scanner.token Seq.t -> (exp * Scanner.token Seq.t, syntax_error) result

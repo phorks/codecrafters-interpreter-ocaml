@@ -1,4 +1,10 @@
 var x = 5;
 var y;
 x = y = 27;
-print y;
+print y + 3;
+{ 
+    var x = 25;
+    print x + y;
+}
+
+print x;

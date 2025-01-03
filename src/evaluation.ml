@@ -6,26 +6,44 @@ let runtime_error_to_string e = match e with RuntimeError s -> s
 
 type value = VNil | VBool of bool | VNum of float | VStr of string
 
-module Environment : sig
-  type t
-
-  val empty : t
-  val get : string -> t -> (value, runtime_error) result
-  val define : string -> value -> t -> t
-end = struct
+module Environment = struct
   module ValueMap = Map.Make (String)
 
-  type t = value ValueMap.t
+  type t = Node of value ValueMap.t * t option
 
-  let empty = ValueMap.empty
+  let empty = Node (ValueMap.empty, None)
+  let empty_with_parent parent : t = Node (ValueMap.empty, Some parent)
 
-  let get (name : string) (env : t) =
-    match ValueMap.find_opt name env with
-    | Some v -> Ok v
-    | None ->
-        Error (RuntimeError (Printf.sprintf "Undefined variable '%s'." name))
+  let rec get (name : string) (env : t) =
+    match env with
+    | Node (map, parent) -> (
+        match ValueMap.find_opt name map with
+        | Some v -> Ok v
+        | None -> (
+            match parent with
+            | None ->
+                Error
+                  (RuntimeError (Printf.sprintf "Undefined variable '%s'." name))
+            | Some parent -> get name parent))
 
-  let define (name : string) (v : value) (env : t) = ValueMap.add name v env
+  let define (name : string) (v : value) (env : t) =
+    match env with Node (map, parent) -> Node (ValueMap.add name v map, parent)
+
+  let rec assign (name : string) (v : value) (env : t) =
+    match env with
+    | Node (map, parent) -> (
+        if ValueMap.mem name map then
+          Ok (Node (ValueMap.add name v map, parent))
+        else
+          match parent with
+          | None ->
+              Error
+                (RuntimeError (Printf.sprintf "Undefined variable '%s'." name))
+          | Some parent ->
+              let+ parent = assign name v parent in
+              Ok (Node (map, Some parent)))
+
+  let parent (env : t) = match env with Node (_, parent) -> parent
 end
 
 let eval_literal l env =
@@ -131,4 +149,5 @@ let rec eval expr env : (value * Environment.t, runtime_error) result =
   | Grouping inner -> eval inner env
   | Assignment (name, expr) ->
       let+ v, env = eval expr env in
-      Ok (v, Environment.define name v env)
+      let+ env' = Environment.assign name v env in
+      Ok (v, env')

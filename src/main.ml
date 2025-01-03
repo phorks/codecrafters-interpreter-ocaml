@@ -61,7 +61,7 @@ let tokenize tokens =
 
 let parse tokens =
   let+ tokens = tokenize tokens in
-  match Parser.parse_expr ((List.to_seq tokens) ()) with
+  match Parser.parse_expr (List.to_seq tokens) with
   | Ok (expr, _) -> Ok expr
   | Error err ->
       Printf.eprintf "%s" (Parser.syntax_error_to_string err);
