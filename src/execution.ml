@@ -5,7 +5,7 @@ let exec_stmt stmt =
   | STExpression _ -> Ok ()
   | STPrint expr ->
       let+ v = Evaluation.eval expr in
-      Printf.printf "%s" (Evaluation.pretty_print v);
+      Printf.printf "%s\n" (Evaluation.pretty_print v);
       Ok ()
 
 let rec exec stmts =
