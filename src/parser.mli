@@ -12,7 +12,12 @@ type binop =
   | GtBinop
   | GeqBinop
 
-type literal = LNil | LBool of bool | LNum of float | LStr of string
+type literal =
+  | LNil
+  | LBool of bool
+  | LNum of float
+  | LStr of string
+  | LIdent of string
 
 module ExpToken : sig
   type 'a t = { token : Scanner.token; kind : 'a }

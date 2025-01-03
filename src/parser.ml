@@ -14,7 +14,12 @@ type binop =
   | GtBinop
   | GeqBinop
 
-type literal = LNil | LBool of bool | LNum of float | LStr of string
+type literal =
+  | LNil
+  | LBool of bool
+  | LNum of float
+  | LStr of string
+  | LIdent of string
 
 module ExpToken = struct
   type 'a t = { token : token; kind : 'a }
@@ -163,6 +168,7 @@ and parse_primary seq =
           Ok (Literal (ExpToken.exp_token hd LNil), seq_tl seq)
       | Num num -> Ok (Literal (ExpToken.exp_token hd (LNum num)), seq_tl seq)
       | Str s -> Ok (Literal (ExpToken.exp_token hd (LStr s)), seq_tl seq)
+      | Ident s -> Ok (Literal (ExpToken.exp_token hd (LIdent s)), seq_tl seq)
       | LeftParen -> (
           let+ inner, rest = parse_equality (seq_tl seq) in
           let+ hd =

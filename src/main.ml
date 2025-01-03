@@ -78,7 +78,8 @@ let evaluate file_contents =
   let scanner = Scanner.scanner file_contents in
   let tokens, _ = Scanner.scan scanner in
   let+ expr = parse tokens in
-  match Evaluation.eval expr with
+  let env = Evaluation.Environment.empty in
+  match Evaluation.eval expr env with
   | Ok v ->
       Printf.printf "%s\n" (Evaluation.pretty_print v);
       Ok ()
@@ -98,7 +99,8 @@ let exec_cmd file_contents =
   let scanner = Scanner.scanner file_contents in
   let tokens, _ = Scanner.scan scanner in
   let+ stmts = parse_stmts tokens in
-  match Execution.exec stmts with
+  let env = Evaluation.Environment.empty in
+  match Execution.exec stmts env with
   | Ok _ -> Ok ()
   | Error err ->
       Printf.eprintf "%s" (Evaluation.runtime_error_to_string err);

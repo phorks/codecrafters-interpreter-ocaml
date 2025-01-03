@@ -1,2 +1,2 @@
-
-35 + "hello";
+var x = 5;
+print x;
