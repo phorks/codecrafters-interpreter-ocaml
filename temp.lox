@@ -1,5 +1,2 @@
-print "world" + "baz" + "bar";
-print 27 - 26;
-print "bar" == "quz";
-print "hi
-by";
+
+35 + "hello";
