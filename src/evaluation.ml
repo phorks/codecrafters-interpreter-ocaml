@@ -19,16 +19,14 @@ let ( let+ ) = Result.bind
 type runtime_error = REOperandType of string
 
 let runtime_error_to_string e = match e with REOperandType s -> s
+let val_truth = function VNil -> false | VBool b -> b | _ -> true
 let eval_unary_num v f g = match v with VNum n -> Ok (VNum (f n)) | _ -> g ()
-
-let eval_unary_bool v f g =
-  match v with VBool b -> Ok (VBool (f b)) | _ -> g ()
+let eval_unary_bool v f = Ok (VBool (f (val_truth v)))
 
 let eval_binary_num v1 v2 f g =
   match (v1, v2) with VNum n1, VNum n2 -> Ok (f n1 n2) | _ -> g ()
 
-let eval_binary_bool v1 v2 f g =
-  match (v1, v2) with VNum b1, VNum b2 -> Ok (f b1 b2) | _ -> g ()
+let eval_binary_bool v1 v2 f = Ok (f (val_truth v1) (val_truth v2))
 
 let eval_binary_str v1 v2 f g =
   match (v1, v2) with VStr s1, VStr s2 -> Ok (f s1 s2) | _ -> g ()
@@ -53,7 +51,7 @@ let rec eval expr =
       let+ v = eval a in
       match op.kind with
       | Parser.NegUnop -> eval_unary_num v Float.neg (unop_type_err "number")
-      | Parser.NotUnop -> eval_unary_bool v Bool.not (unop_type_err "bool"))
+      | Parser.NotUnop -> eval_unary_bool v Bool.not)
   | Binary (op, a, b) -> (
       let+ v1 = eval a in
       let+ v2 = eval b in
