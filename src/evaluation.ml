@@ -26,13 +26,14 @@ let eval_unary_bool v f = Ok (VBool (f (val_truth v)))
 let eval_binary_num v1 v2 f g =
   match (v1, v2) with VNum n1, VNum n2 -> Ok (f n1 n2) | _ -> g ()
 
-let eval_binary_bool v1 v2 f = Ok (f (val_truth v1) (val_truth v2))
+(* let eval_binary_bool v1 v2 f = Ok (f (val_truth v1) (val_truth v2)) *)
 
 let eval_binary_str v1 v2 f g =
   match (v1, v2) with VStr s1, VStr s2 -> Ok (f s1 s2) | _ -> g ()
 
 let f_num f n1 n2 = VNum (f n1 n2)
-let f_bool f b1 b2 = VBool (f b1 b2)
+
+(* let f_bool f b1 b2 = VBool (f b1 b2) *)
 let f_str f s1 s2 = VStr (f s1 s2)
 
 let unop_type_err type_str () =
