@@ -230,10 +230,8 @@ module Scanner : SCANNER = struct
       | Seq.Cons (hd, tl) -> (
           if hd == '"' then (Some literal, tl, line)
           else
-            let rest, line =
-              if hd == '\n' then (literal, line + 1)
-              else (literal ^ String.make 1 hd, line)
-            in
+            let rest = literal ^ String.make 1 hd in
+            let line = if hd == '\n' then line + 1 else line in
             match aux tl rest line with
             | None, tl', line' -> (None, tl', line')
             | Some s, tl', line' -> (Some s, tl', line'))
