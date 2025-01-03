@@ -85,7 +85,7 @@ let match_factor_op seq =
   let* hd = seq_hd_opt seq in
   match hd.tt with
   | Star -> Some (ExpToken.exp_token hd StarBinop)
-  | Minus -> Some (ExpToken.exp_token hd SlashBinop)
+  | Slash -> Some (ExpToken.exp_token hd SlashBinop)
   | _ -> None
 
 let match_unary_op seq =
