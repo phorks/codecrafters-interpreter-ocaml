@@ -161,7 +161,12 @@ and parse_for (seq : Scanner.token Seq.t) =
   let+ rest = expect_semicolon rest "loop condition" in
   let+ step, rest =
     match rest () with
-    | Seq.Cons ({ tt = Scanner.Semicolon; _ }, tl) -> Ok (None, tl)
+    | Seq.Cons ({ tt = Scanner.RightParen; _ }, _) ->
+        Ok
+          ( None,
+            rest
+            (* the right parenthesis
+               shouldn't be skipped *) )
     | _ ->
         let+ step, rest = Parser.parse_expr rest in
         Ok (Some step, rest)
