@@ -4,6 +4,8 @@ val runtime_error_to_string : runtime_error -> string
 
 type value = VNil | VBool of bool | VNum of float | VStr of string
 
+val val_truth : value -> bool
+
 module Environment : sig
   type t
 

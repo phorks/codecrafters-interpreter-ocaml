@@ -28,6 +28,14 @@ let rec exec_stmt stmt env =
       in
       let+ env' = aux stmts env in
       Ok (Option.get (Env.parent env'))
+  | STIf (expr, body, else_branch) -> (
+      let+ cond, env = Evaluation.eval expr env in
+      let cond = Evaluation.val_truth cond in
+      if cond then exec_stmt body env
+      else
+        match else_branch with
+        | Some else_branch -> exec_stmt else_branch env
+        | None -> Ok env)
 
 let rec exec stmts env =
   match stmts with

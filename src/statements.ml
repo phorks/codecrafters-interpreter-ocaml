@@ -3,6 +3,7 @@ type statement =
   | STPrint of Parser.exp
   | STVarDecl of string * Parser.exp option
   | STBlock of statement list
+  | STIf of Parser.exp * statement * statement option
 
 let ( let* ) = Option.bind
 let ( let+ ) = Result.bind
@@ -23,11 +24,27 @@ let expect_semicolon seq after_what =
   in
   Ok rest
 
+let expect_left_paren seq after_what =
+  let+ _, rest =
+    expect_tt seq (Printf.sprintf "Expect '(' after %s" after_what) (function
+      | Scanner.LeftParen -> Some ()
+      | _ -> None)
+  in
+  Ok rest
+
+let expect_right_paren seq after_what =
+  let+ _, rest =
+    expect_tt seq (Printf.sprintf "Expect ')' after %s" after_what) (function
+      | Scanner.RightParen -> Some ()
+      | _ -> None)
+  in
+  Ok rest
+
 let expect_ident seq err_msg =
   expect_tt seq err_msg (function Scanner.Ident name -> Some name | _ -> None)
 
-let expect_tt_opt (seq : Scanner.token Seq.node) f =
-  match seq with
+let expect_tt_opt (seq : Scanner.token Seq.t) f =
+  match seq () with
   | Seq.Nil -> None
   | Seq.Cons (hd, tl) -> Option.map (fun x -> (x, tl)) (f hd.tt)
 
@@ -64,7 +81,7 @@ let parse_print seq =
 let parse_var_decl seq =
   let+ name, rest = expect_ident seq "Expect variable name" in
   let+ init, rest =
-    match expect_equal_opt (rest ()) with
+    match expect_equal_opt rest with
     | Some (_, tl) -> (
         match Parser.parse_expr tl with
         | Ok (expr, tl) -> Ok (Some expr, tl)
@@ -76,50 +93,53 @@ let parse_var_decl seq =
 
 let rec parse (seq : Scanner.token Seq.t) =
   match seq () with
-  | Seq.Nil -> Ok List.[]
+  | Seq.Nil | Seq.Cons ({ tt = Scanner.Eof; _ }, _) -> Ok List.[]
+  | _ ->
+      let+ stmt, rest = parse_single seq in
+      let+ rest = parse rest in
+      Ok List.(stmt :: rest)
+
+and parse_single (seq : Scanner.token Seq.t) =
+  match seq () with
+  | Seq.Nil -> parse_expr Seq.empty
   | Seq.Cons (hd, tl) -> (
       match hd.tt with
-      | Scanner.Eof -> Ok List.[]
-      | _ ->
-          let+ stmt, rest = parse_single hd tl in
-          let+ rest = parse rest in
-          Ok List.(stmt :: rest))
-
-(* match hd.tt with *)
-(* | Scanner.Eof -> Ok List.[] *)
-(* | _ -> *)
-(*     let+ stmt, rest = *)
-(*       match hd.tt with *)
-(*       | Scanner.Reserved Scanner.PrintKeyword -> parse_print (tl ()) *)
-(*       | Scanner.Reserved Scanner.VarKeyword -> parse_var_decl (tl ()) *)
-(*       | Scanner.LeftBrace -> parse_block (tl ()) *)
-(*       | _ -> parse_expr (seq ()) *)
-(*     in *)
-(*     let+ rest = parse rest in *)
-(*     Ok List.(stmt :: rest)) *)
-and parse_single (token : Scanner.token) rest =
-  let+ stmt, rest =
-    match token.tt with
-    | Scanner.Reserved Scanner.PrintKeyword -> parse_print rest
-    | Scanner.Reserved Scanner.VarKeyword -> parse_var_decl rest
-    | Scanner.LeftBrace -> parse_block rest
-    | _ -> parse_expr (Seq.cons token rest)
-  in
-  Ok (stmt, rest)
+      | Scanner.Reserved Scanner.PrintKeyword -> parse_print tl
+      | Scanner.Reserved Scanner.VarKeyword -> parse_var_decl tl
+      | Scanner.LeftBrace -> parse_block tl
+      | Scanner.Reserved Scanner.IfKeyword -> parse_if tl
+      | _ -> parse_expr seq)
 
 and parse_block (seq : Scanner.token Seq.t) =
   let rec aux (seq : Scanner.token Seq.t) =
     match seq () with
     | Seq.Nil -> Ok (List.[], seq)
-    | Seq.Cons (hd, tl) -> (
-        match hd.tt with
-        | Scanner.Eof ->
-            Error (Parser.SyntaxError (Some hd, "Expect '}' after block"))
-        | Scanner.RightBrace -> Ok (List.[], tl)
-        | _ ->
-            let+ stmt, rest = parse_single hd tl in
-            let+ stmts, rest = aux rest in
-            Ok (List.(stmt :: stmts), rest))
+    | Seq.Cons (({ tt = Scanner.Eof; _ } as hd), _) ->
+        Error (Parser.SyntaxError (Some hd, "Expect '}' after block"))
+    | Seq.Cons ({ tt = Scanner.RightBrace; _ }, tl) -> Ok (List.[], tl)
+    | _ ->
+        let+ stmt, rest = parse_single seq in
+        let+ stmts, rest = aux rest in
+        Ok (List.(stmt :: stmts), rest)
   in
   let+ stmts, rest = aux seq in
   Ok (STBlock stmts, rest)
+
+and parse_if (seq : Scanner.token Seq.t) =
+  let+ rest = expect_left_paren seq "'if'" in
+  let+ expr, rest = Parser.parse_expr rest in
+  let+ rest = expect_right_paren rest "if condition" in
+  let+ body, rest = parse_single rest in
+  let+ else_branch, rest =
+    match
+      expect_tt_opt rest (fun tt ->
+          match tt with
+          | Scanner.Reserved Scanner.ElseKeyword -> Some ()
+          | _ -> None)
+    with
+    | Some (_, rest) ->
+        let+ else_branch, rest = parse_single rest in
+        Ok (Some else_branch, rest)
+    | _ -> Ok (None, rest)
+  in
+  Ok (STIf (expr, body, else_branch), rest)
