@@ -3,3 +3,4 @@ let float_to_string num =
   else Printf.sprintf "%.15g" num
 
 let float_value_to_string num = Printf.sprintf "%.15g" num
+let opt_get_or opt default = match opt with Some v -> v | None -> default

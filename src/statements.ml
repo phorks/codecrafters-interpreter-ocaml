@@ -1,5 +1,5 @@
 type statement =
-  | STExpression of Parser.exp
+  | STExpr of Parser.exp
   | STPrint of Parser.exp
   | STVarDecl of string * Parser.exp option
   | STBlock of statement list
@@ -55,7 +55,7 @@ let expect_equal_opt seq =
 let parse_expr seq =
   let+ expr, rest = Parser.parse_expr seq in
   let+ rest = expect_semicolon rest "expression" in
-  Ok (STExpression expr, rest)
+  Ok (STExpr expr, rest)
 
 let parse_print seq =
   let+ expr, rest = Parser.parse_expr seq in
@@ -93,6 +93,7 @@ and parse_single (seq : Scanner.token Seq.t) =
       | Scanner.LeftBrace -> parse_block tl
       | Scanner.Reserved Scanner.IfKeyword -> parse_if tl
       | Scanner.Reserved Scanner.WhileKeyword -> parse_while tl
+      | Scanner.Reserved Scanner.ForKeyword -> parse_for tl
       | _ -> parse_expr seq)
 
 and parse_block (seq : Scanner.token Seq.t) =
@@ -135,3 +136,47 @@ and parse_while (seq : Scanner.token Seq.t) =
   let+ rest = expect_right_paren rest "condition" in
   let+ body, rest = parse_single rest in
   Ok (STWhile (expr, body), rest)
+
+and parse_for (seq : Scanner.token Seq.t) =
+  let+ rest = expect_left_paren seq "'for'" in
+  let+ init, rest =
+    match rest () with
+    | Seq.Cons ({ tt = Scanner.Semicolon; _ }, tl) -> Ok (None, tl)
+    | Seq.Cons ({ tt = Scanner.Reserved Scanner.VarKeyword; _ }, tl) ->
+        let+ init, rest = parse_var_decl tl in
+        Ok (Some init, rest)
+    | _ ->
+        let+ init, rest = parse_expr rest in
+        Ok (Some init, rest)
+  in
+  let+ cond, rest =
+    match rest () with
+    | Seq.Cons (({ tt = Scanner.Semicolon; _ } as hd), tl) ->
+        Ok
+          (Parser.Literal (Parser.ExpToken.exp_token hd (Parser.LBool true)), tl)
+    | _ ->
+        let+ cond, rest = Parser.parse_expr rest in
+        Ok (cond, rest)
+  in
+  let+ rest = expect_semicolon rest "loop condition" in
+  let+ step, rest =
+    match rest () with
+    | Seq.Cons ({ tt = Scanner.Semicolon; _ }, tl) -> Ok (None, tl)
+    | _ ->
+        let+ step, rest = Parser.parse_expr rest in
+        Ok (Some step, rest)
+  in
+  let+ rest = expect_right_paren rest "clauses" in
+  let+ body, rest = parse_single rest in
+  let body =
+    match step with
+    | Some step_stmt -> STBlock List.(body :: [ STExpr step_stmt ])
+    | _ -> body
+  in
+  let while_stmt = STWhile (cond, body) in
+  let stmt =
+    match init with
+    | Some init_stmt -> STBlock List.(init_stmt :: [ while_stmt ])
+    | _ -> while_stmt
+  in
+  Ok (stmt, rest)

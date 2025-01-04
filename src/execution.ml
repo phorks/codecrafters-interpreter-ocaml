@@ -3,7 +3,7 @@ module Env = Evaluation.Environment
 
 let rec exec_stmt stmt env =
   match stmt with
-  | STExpression expr ->
+  | STExpr expr ->
       let+ _, env = Evaluation.eval expr env in
       Ok env
   | STPrint expr ->
