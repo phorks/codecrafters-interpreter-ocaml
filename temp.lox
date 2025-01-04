@@ -1,1 +1,3 @@
-print clock();
+if (clock() >= 10) {
+    print "Hi";
+}

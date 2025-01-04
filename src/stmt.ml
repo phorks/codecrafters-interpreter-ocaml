@@ -73,6 +73,7 @@ and parse_block (seq : Token.t Seq.t) =
 and parse_if (seq : Token.t Seq.t) =
   let+ rest = expect_left_paren seq "'if'" in
   let+ expr, rest = Expr.parse rest in
+  let+ rest = expect_right_paren rest "if condition" in
   let+ body, rest = parse_single rest in
   let+ else_branch, rest =
     match
