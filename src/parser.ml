@@ -13,6 +13,8 @@ type binop =
   | LeqBinop
   | GtBinop
   | GeqBinop
+  | LogOrBinop
+  | LogAndBinop
 
 type literal =
   | LNil
@@ -107,8 +109,20 @@ let match_unary_op seq =
   | Minus -> Some (ExpToken.exp_token hd NegUnop)
   | _ -> None
 
+let match_logical_or_op seq =
+  let* hd = seq_hd_opt seq in
+  match hd.tt with
+  | Reserved OrKeyword -> Some (ExpToken.exp_token hd LogOrBinop)
+  | _ -> None
+
+let match_logical_and_op seq =
+  let* hd = seq_hd_opt seq in
+  match hd.tt with
+  | Reserved AndKeyword -> Some (ExpToken.exp_token hd LogAndBinop)
+  | _ -> None
+
 let rec parse_assignment seq =
-  let+ left, rest = parse_equality seq in
+  let+ left, rest = parse_or seq in
   match match_assignment_op rest with
   | Some op -> (
       let+ right, rest = parse_assignment (seq_tl rest) in
@@ -119,6 +133,32 @@ let rec parse_assignment seq =
           | _ -> Error (SyntaxError (Some op, "Invalid assignment target.")))
       | _ -> Error (SyntaxError (Some op, "Invalid assignment target.")))
   | None -> Ok (left, rest)
+
+and parse_or seq =
+  let+ expr, rest = parse_and seq in
+
+  let rec aux seq left =
+    match match_logical_or_op seq with
+    | Some op ->
+        let+ right, rest = parse_and (seq_tl seq) in
+        let expr = Binary (op, left, right) in
+        aux rest expr
+    | None -> Ok (left, seq)
+  in
+  aux rest expr
+
+and parse_and seq =
+  let+ expr, rest = parse_equality seq in
+
+  let rec aux seq left =
+    match match_logical_and_op seq with
+    | Some op ->
+        let+ right, rest = parse_equality (seq_tl seq) in
+        let expr = Binary (op, left, right) in
+        aux rest expr
+    | None -> Ok (left, seq)
+  in
+  aux rest expr
 
 and parse_equality seq =
   let+ expr, rest = parse_comparison seq in

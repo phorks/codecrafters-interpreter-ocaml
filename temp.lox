@@ -7,6 +7,6 @@ print y + 3;
     print x + y;
 }
 
-if (x == 27) { print "gotcha"; }
+if (true or false) { print "gotcha"; }
 
 print x;

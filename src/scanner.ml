@@ -325,3 +325,20 @@ module Scanner : SCANNER = struct
     let l, is_ok = scan_aux seq 1 in
     (l, if is_ok then Successful else HadError)
 end
+
+let print_hd (seq : token Seq.t) =
+  let msg =
+    match seq () with
+    | Seq.Nil -> "Empty"
+    | Seq.Cons (hd, _) -> pretty_print_tt hd.tt
+  in
+  Printf.printf "%s -> " msg
+
+let print_seq (seq : token Seq.t) =
+  let rec aux (seq : token Seq.t) =
+    match seq () with
+    | Seq.Nil -> ""
+    | Seq.Cons (hd, tl) ->
+        Printf.sprintf "%s %s" (pretty_print_tt hd.tt) (aux tl)
+  in
+  Printf.printf "%s\n" (aux seq)

@@ -1,5 +1,7 @@
 let ( let+ ) = Result.bind
 
+exception Unreachable
+
 type runtime_error = RuntimeError of string
 
 let runtime_error_to_string e = match e with RuntimeError s -> s
@@ -103,6 +105,19 @@ let rec eval expr env : (value * Environment.t, runtime_error) result =
       | Parser.NegUnop ->
           eval_unary_num v env Float.neg (unop_type_err "number")
       | Parser.NotUnop -> eval_unary_bool v env Bool.not)
+  | Binary ({ kind = LogOrBinop; _ }, a, b) ->
+      (* and & or need different treatments because of the lazy evaluation *)
+      let+ v1, env = eval a env in
+      if val_truth v1 then Ok (VBool true, env)
+      else
+        let+ v2, env = eval b env in
+        Ok (VBool (val_truth v2), env)
+  | Binary ({ kind = LogAndBinop; _ }, a, b) ->
+      let+ v1, env = eval a env in
+      if val_truth v1 then
+        let+ v2, env = eval b env in
+        Ok (VBool (val_truth v2), env)
+      else Ok (VBool false, env)
   | Binary (op, a, b) -> (
       let+ v1, env = eval a env in
       let+ v2, env = eval b env in
@@ -145,7 +160,9 @@ let rec eval expr env : (value * Environment.t, runtime_error) result =
       | GeqBinop ->
           eval_binary_num v1 v2 env
             (fun n1 n2 -> VBool (n1 >= n2))
-            (binop_type_err "number"))
+            (binop_type_err "number")
+      | LogOrBinop | LogAndBinop ->
+          raise Unreachable (* These cases are already handled *))
   | Grouping inner -> eval inner env
   | Assignment (name, expr) ->
       let+ v, env = eval expr env in

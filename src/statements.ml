@@ -51,23 +51,6 @@ let expect_tt_opt (seq : Scanner.token Seq.t) f =
 let expect_equal_opt seq =
   expect_tt_opt seq (function Scanner.Equal -> Some () | _ -> None)
 
-let print_hd (seq : Scanner.token Seq.t) =
-  let msg =
-    match seq () with
-    | Seq.Nil -> "Empty"
-    | Seq.Cons (hd, _) -> Scanner.pretty_print_tt hd.tt
-  in
-  Printf.printf "%s -> " msg
-
-let print_seq (seq : Scanner.token Seq.t) =
-  let rec aux (seq : Scanner.token Seq.t) =
-    match seq () with
-    | Seq.Nil -> ""
-    | Seq.Cons (hd, tl) ->
-        Printf.sprintf "%s %s" (Scanner.pretty_print_tt hd.tt) (aux tl)
-  in
-  Printf.printf "%s\n" (aux seq)
-
 let parse_expr seq =
   let+ expr, rest = Parser.parse_expr seq in
   let+ rest = expect_semicolon rest "expression" in

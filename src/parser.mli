@@ -11,6 +11,8 @@ type binop =
   | LeqBinop
   | GtBinop
   | GeqBinop
+  | LogOrBinop
+  | LogAndBinop
 
 type literal =
   | LNil
