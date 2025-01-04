@@ -4,6 +4,7 @@ type statement =
   | STVarDecl of string * Parser.exp option
   | STBlock of statement list
   | STIf of Parser.exp * statement * statement option
+  | STWhile of Parser.exp * statement
 
 let ( let* ) = Option.bind
 let ( let+ ) = Result.bind
@@ -91,6 +92,7 @@ and parse_single (seq : Scanner.token Seq.t) =
       | Scanner.Reserved Scanner.VarKeyword -> parse_var_decl tl
       | Scanner.LeftBrace -> parse_block tl
       | Scanner.Reserved Scanner.IfKeyword -> parse_if tl
+      | Scanner.Reserved Scanner.WhileKeyword -> parse_while tl
       | _ -> parse_expr seq)
 
 and parse_block (seq : Scanner.token Seq.t) =
@@ -126,3 +128,10 @@ and parse_if (seq : Scanner.token Seq.t) =
     | _ -> Ok (None, rest)
   in
   Ok (STIf (expr, body, else_branch), rest)
+
+and parse_while (seq : Scanner.token Seq.t) =
+  let+ rest = expect_left_paren seq "'while'" in
+  let+ expr, rest = Parser.parse_expr rest in
+  let+ rest = expect_right_paren rest "condition" in
+  let+ body, rest = parse_single rest in
+  Ok (STWhile (expr, body), rest)

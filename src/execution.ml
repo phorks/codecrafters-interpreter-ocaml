@@ -36,6 +36,16 @@ let rec exec_stmt stmt env =
         match else_branch with
         | Some else_branch -> exec_stmt else_branch env
         | None -> Ok env)
+  | STWhile (expr, body) ->
+      let rec aux env =
+        let+ cond, env = Evaluation.eval expr env in
+        let cond = Evaluation.val_truth cond in
+        if cond then
+          let+ env = exec_stmt body env in
+          aux env
+        else Ok env
+      in
+      aux env
 
 let rec exec stmts env =
   match stmts with
