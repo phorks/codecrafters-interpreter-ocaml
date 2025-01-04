@@ -1,12 +1,7 @@
-var x = 5;
-var y;
-x = y = 27;
-print y + 3;
-{ 
-    var x = 25;
-    print x + y;
-}
-
-if (true or false) { print "gotcha"; }
-
-print x;
+ print 74 or true;
+ print false or 74;
+ print false or false or true;
+ 
+ print false or false;
+ print false or false or false;
+ print false or false or false or false;

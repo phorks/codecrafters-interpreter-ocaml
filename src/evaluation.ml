@@ -108,7 +108,7 @@ let rec eval expr env : (value * Environment.t, runtime_error) result =
   | Binary ({ kind = LogOrBinop; _ }, a, b) ->
       (* and & or need different treatments because of the lazy evaluation *)
       let+ v1, env = eval a env in
-      if val_truth v1 then Ok (VBool true, env)
+      if val_truth v1 then Ok (v1, env)
       else
         let+ v2, env = eval b env in
         Ok (v2, env)
