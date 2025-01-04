@@ -111,12 +111,12 @@ let rec eval expr env : (value * Environment.t, runtime_error) result =
       if val_truth v1 then Ok (VBool true, env)
       else
         let+ v2, env = eval b env in
-        Ok (VBool (val_truth v2), env)
+        Ok (v2, env)
   | Binary ({ kind = LogAndBinop; _ }, a, b) ->
       let+ v1, env = eval a env in
       if val_truth v1 then
         let+ v2, env = eval b env in
-        Ok (VBool (val_truth v2), env)
+        Ok (v2, env)
       else Ok (VBool false, env)
   | Binary (op, a, b) -> (
       let+ v1, env = eval a env in
