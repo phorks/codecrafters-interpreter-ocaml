@@ -159,10 +159,10 @@ let tt_literal (tt : token_type) : string =
   | Num num -> Common.float_to_string num
   | _ -> "null"
 
-type token = { tt : token_type; line : int; lexeme : string }
+type t = { tt : token_type; line : int; lexeme : string }
 type lexical_error = { msg : string; line : int }
 type scan_result = HadError | Successful
-type token_result = (token, lexical_error) result
+type token_result = (t, lexical_error) result
 
 let lexical_error_to_string err =
   Printf.sprintf "[line %d] Error: %s\n" err.line err.msg
@@ -326,7 +326,7 @@ module Scanner : SCANNER = struct
     (l, if is_ok then Successful else HadError)
 end
 
-let print_hd (seq : token Seq.t) =
+let print_hd (seq : t Seq.t) =
   let msg =
     match seq () with
     | Seq.Nil -> "Empty"
@@ -334,8 +334,8 @@ let print_hd (seq : token Seq.t) =
   in
   Printf.printf "%s -> " msg
 
-let print_seq (seq : token Seq.t) =
-  let rec aux (seq : token Seq.t) =
+let print_seq (seq : t Seq.t) =
+  let rec aux (seq : t Seq.t) =
     match seq () with
     | Seq.Nil -> ""
     | Seq.Cons (hd, tl) ->

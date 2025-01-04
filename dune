@@ -3,4 +3,4 @@
 (executable
  (name main)
  (public_name lox)
- (libraries lwt))
+ (libraries lwt unix))

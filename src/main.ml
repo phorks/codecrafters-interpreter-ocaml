@@ -1,5 +1,3 @@
-open Scanner
-
 let ( let+ ) = Result.bind
 
 type interpreter_error = IESyntaxError | IERuntimeError | IEUnknownCommand
@@ -11,22 +9,24 @@ let interpreter_error_code e =
   | IEUnknownCommand -> 1
 
 let tokenize_cmd file_contents =
-  let rec aux (tokens : token_result List.t) =
+  let rec aux (tokens : Token.token_result List.t) =
     match tokens with
     | List.[] -> ()
     | List.(hd :: tl) ->
         (match hd with
-        | Error err -> Printf.eprintf "%s" (lexical_error_to_string err)
+        | Error err -> Printf.eprintf "%s" (Token.lexical_error_to_string err)
         | Ok token ->
-            Printf.printf "%s %s %s\n" (tt_string token.tt) token.lexeme
-              (tt_literal token.tt);
+            Printf.printf "%s %s %s\n" (Token.tt_string token.tt) token.lexeme
+              (Token.tt_literal token.tt);
             ());
         aux tl
   in
-  let scanner = Scanner.scanner file_contents in
-  let tokens, result = Scanner.scan scanner in
+  let scanner = Token.Scanner.scanner file_contents in
+  let tokens, result = Token.Scanner.scan scanner in
   aux tokens;
-  match result with Successful -> Ok () | HadError -> Error IESyntaxError
+  match result with
+  | Token.Successful -> Ok ()
+  | HadError -> Error IESyntaxError
 
 let rec filter_lexical_errors tokens =
   match tokens with
@@ -54,56 +54,56 @@ let tokenize tokens =
   | Error lexical_errors ->
       let _ =
         List.map
-          (fun e -> Printf.eprintf "%s" (lexical_error_to_string e))
+          (fun e -> Printf.eprintf "%s" (Token.lexical_error_to_string e))
           lexical_errors
       in
       Error IESyntaxError
 
 let parse tokens =
   let+ tokens = tokenize tokens in
-  match Parser.parse_expr (List.to_seq tokens) with
+  match Expr.parse (List.to_seq tokens) with
   | Ok (expr, _) -> Ok expr
   | Error err ->
-      Printf.eprintf "%s" (Parser.syntax_error_to_string err);
+      Printf.eprintf "%s" (Err.syntax_error_to_string err);
       Error IESyntaxError
 
 let parse_cmd file_contents =
-  let scanner = Scanner.scanner file_contents in
-  let tokens, _ = Scanner.scan scanner in
+  let scanner = Token.Scanner.scanner file_contents in
+  let tokens, _ = Token.Scanner.scan scanner in
   let+ expr = parse tokens in
-  Printf.printf "%s\n" (Parser.pretty_print expr);
+  Printf.printf "%s\n" (Expr.pretty_print expr);
   Ok ()
 
 let evaluate file_contents =
-  let scanner = Scanner.scanner file_contents in
-  let tokens, _ = Scanner.scan scanner in
+  let scanner = Token.Scanner.scanner file_contents in
+  let tokens, _ = Token.Scanner.scan scanner in
   let+ expr = parse tokens in
-  let env = Evaluation.Environment.empty in
-  match Evaluation.eval expr env with
+  let env = Globals.global_env in
+  match Value.eval expr env with
   | Ok (v, _) ->
-      Printf.printf "%s\n" (Evaluation.pretty_print v);
+      Printf.printf "%s\n" (Value.pretty_print v);
       Ok ()
   | Error err ->
-      Printf.eprintf "%s" (Evaluation.runtime_error_to_string err);
+      Printf.eprintf "%s" (Err.runtime_error_to_string err);
       Error IERuntimeError
 
 let parse_stmts tokens =
   let+ tokens = tokenize tokens in
-  match Statements.parse (List.to_seq tokens) with
+  match Stmt.parse (List.to_seq tokens) with
   | Ok stmts -> Ok stmts
   | Error err ->
-      Printf.eprintf "%s" (Parser.syntax_error_to_string err);
+      Printf.eprintf "%s" (Err.syntax_error_to_string err);
       Error IESyntaxError
 
 let exec_cmd file_contents =
-  let scanner = Scanner.scanner file_contents in
-  let tokens, _ = Scanner.scan scanner in
+  let scanner = Token.Scanner.scanner file_contents in
+  let tokens, _ = Token.Scanner.scan scanner in
   let+ stmts = parse_stmts tokens in
-  let env = Evaluation.Environment.empty in
+  let env = Globals.global_env in
   match Execution.exec stmts env with
   | Ok _ -> Ok ()
   | Error err ->
-      Printf.eprintf "%s" (Evaluation.runtime_error_to_string err);
+      Printf.eprintf "%s" (Err.runtime_error_to_string err);
       Error IERuntimeError
 
 let () =

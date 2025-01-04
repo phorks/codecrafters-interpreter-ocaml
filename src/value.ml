@@ -2,13 +2,26 @@ let ( let+ ) = Result.bind
 
 exception Unreachable
 
-type runtime_error = RuntimeError of string
+type t =
+  | VNil
+  | VBool of bool
+  | VNum of float
+  | VStr of string
+  | VCallable of int * (t list -> t)
 
-let runtime_error_to_string e = match e with RuntimeError s -> s
+let truth = function VNil -> false | VBool b -> b | _ -> true
 
-type value = VNil | VBool of bool | VNum of float | VStr of string
+let pretty_print v =
+  match v with
+  | VNil -> "nil"
+  | VBool b -> if b then "true" else "false"
+  | VNum n -> Common.float_value_to_string n
+  | VStr s -> s
+  | VCallable (arity, _) -> Printf.sprintf "callable(arity: %d)" arity
 
-module Environment = struct
+module Env = struct
+  type value = t
+
   module ValueMap = Map.Make (String)
 
   type t = Node of value ValueMap.t * t option
@@ -25,7 +38,8 @@ module Environment = struct
             match parent with
             | None ->
                 Error
-                  (RuntimeError (Printf.sprintf "Undefined variable '%s'." name))
+                  (Err.RuntimeError
+                     (Printf.sprintf "Undefined variable '%s'." name))
             | Some parent -> get name parent))
 
   let define (name : string) (v : value) (env : t) =
@@ -40,7 +54,8 @@ module Environment = struct
           match parent with
           | None ->
               Error
-                (RuntimeError (Printf.sprintf "Undefined variable '%s'." name))
+                (Err.RuntimeError
+                   (Printf.sprintf "Undefined variable '%s'." name))
           | Some parent ->
               let+ parent = assign name v parent in
               Ok (Node (map, Some parent)))
@@ -51,28 +66,18 @@ end
 let eval_literal l env =
   let+ v =
     match l with
-    | Parser.LNil -> Ok VNil
-    | Parser.LBool b -> Ok (VBool b)
-    | Parser.LNum x -> Ok (VNum x)
-    | Parser.LStr s -> Ok (VStr s)
-    | Parser.LVar name -> Environment.get name env
+    | Expr.LNil -> Ok VNil
+    | Expr.LBool b -> Ok (VBool b)
+    | Expr.LNum x -> Ok (VNum x)
+    | Expr.LStr s -> Ok (VStr s)
+    | Expr.LVar name -> Env.get name env
   in
   Ok (v, env)
-
-let pretty_print v =
-  match v with
-  | VNil -> "nil"
-  | VBool b -> if b then "true" else "false"
-  | VNum n -> Common.float_value_to_string n
-  | VStr s -> s
-
-let ( let+ ) = Result.bind
-let val_truth = function VNil -> false | VBool b -> b | _ -> true
 
 let eval_unary_num v env f g =
   match v with VNum n -> Ok (VNum (f n), env) | _ -> g ()
 
-let eval_unary_bool v env f = Ok (VBool (f (val_truth v)), env)
+let eval_unary_bool v env f = Ok (VBool (f (truth v)), env)
 
 let eval_binary_num v1 v2 env f g =
   match (v1, v2) with VNum n1, VNum n2 -> Ok (f n1 n2, env) | _ -> g ()
@@ -88,33 +93,32 @@ let f_num f n1 n2 = VNum (f n1 n2)
 let f_str f s1 s2 = VStr (f s1 s2)
 
 let unop_type_err type_str () =
-  Error (RuntimeError (Printf.sprintf "Operand must be a %s." type_str))
+  Error (Err.RuntimeError (Printf.sprintf "Operand must be a %s." type_str))
 
 let binop_type_err type_str () =
-  Error (RuntimeError (Printf.sprintf "Operands must be %ss." type_str))
+  Error (Err.RuntimeError (Printf.sprintf "Operands must be %ss." type_str))
 
 let binop_num_str_err () =
-  Error (RuntimeError "Operands must be two numbers or two strings.")
+  Error (Err.RuntimeError "Operands must be two numbers or two strings.")
 
-let rec eval expr env : (value * Environment.t, runtime_error) result =
+let rec eval expr env : (t * Env.t, Err.runtime_error) result =
   match expr with
-  | Parser.Literal l -> eval_literal l.kind env
-  | Parser.Unary (op, a) -> (
+  | Expr.Literal l -> eval_literal l.kind env
+  | Expr.Unary (op, a) -> (
       let+ v, env = eval a env in
       match op.kind with
-      | Parser.NegUnop ->
-          eval_unary_num v env Float.neg (unop_type_err "number")
-      | Parser.NotUnop -> eval_unary_bool v env Bool.not)
+      | Expr.NegUnop -> eval_unary_num v env Float.neg (unop_type_err "number")
+      | Expr.NotUnop -> eval_unary_bool v env Bool.not)
   | Binary ({ kind = LogOrBinop; _ }, a, b) ->
       (* and & or need different treatments because of the lazy evaluation *)
       let+ v1, env = eval a env in
-      if val_truth v1 then Ok (v1, env)
+      if truth v1 then Ok (v1, env)
       else
         let+ v2, env = eval b env in
         Ok (v2, env)
   | Binary ({ kind = LogAndBinop; _ }, a, b) ->
       let+ v1, env = eval a env in
-      if val_truth v1 then
+      if truth v1 then
         let+ v2, env = eval b env in
         Ok (v2, env)
       else Ok (VBool false, env)
@@ -166,5 +170,25 @@ let rec eval expr env : (value * Environment.t, runtime_error) result =
   | Grouping inner -> eval inner env
   | Assignment (name, expr) ->
       let+ v, env = eval expr env in
-      let+ env' = Environment.assign name v env in
+      let+ env' = Env.assign name v env in
       Ok (v, env')
+  | Call (expr, args) -> (
+      let rec map_args args env arg_values =
+        match args with
+        | List.[] -> Ok (arg_values, env)
+        | List.(hd :: tl) ->
+            let+ v, env = eval hd env in
+            map_args tl env List.(arg_values @ [ v ])
+      in
+      let+ fn, env = eval expr env in
+      match fn with
+      | VCallable (arity, fn) ->
+          let n = List.length args in
+          if n <> arity then
+            Error
+              (Err.RuntimeError
+                 (Printf.sprintf "Expected %d arguments but got %d." arity n))
+          else
+            let+ args, env = map_args args env List.[] in
+            Ok (fn args, env)
+      | _ -> Error (Err.RuntimeError "Can only call functions and classes."))

@@ -1,5 +1,3 @@
-open Scanner
-
 type unop = NegUnop | NotUnop
 
 type binop =
@@ -24,18 +22,19 @@ type literal =
   | LVar of string
 
 module ExpToken = struct
-  type 'a t = { token : token; kind : 'a }
+  type 'a t = { token : Token.t; kind : 'a }
 
   let exp_token token kind = { token; kind }
-  let pretty_print exp_token = pretty_print_tt exp_token.token.tt
+  let pretty_print exp_token = Token.pretty_print_tt exp_token.token.tt
 end
 
-type exp =
+type t =
   | Literal of literal ExpToken.t
-  | Unary of unop ExpToken.t * exp
-  | Binary of binop ExpToken.t * exp * exp
-  | Grouping of exp
-  | Assignment of string * exp
+  | Unary of unop ExpToken.t * t
+  | Binary of binop ExpToken.t * t * t
+  | Grouping of t
+  | Assignment of string * t
+  | Call of t * t list
 
 let rec pretty_print exp =
   match exp with
@@ -48,18 +47,13 @@ let rec pretty_print exp =
   | Grouping e -> Printf.sprintf "(group %s)" (pretty_print e)
   | Assignment (name, expr) ->
       Printf.sprintf "(= %s %s)" name (pretty_print expr)
-
-type syntax_error = SyntaxError of (token option * string)
-
-let syntax_error_to_string err =
-  match err with
-  | SyntaxError (token, msg) ->
-      let line, at_msg =
-        match token with
-        | Some token -> (token.line, token_error_at_msg token)
-        | None -> (-1, "end")
+  | Call (expr, args) ->
+      let rec aux args =
+        match args with
+        | List.[] -> ""
+        | List.(hd :: tl) -> Printf.sprintf "%s; %s" (pretty_print hd) (aux tl)
       in
-      Printf.sprintf "[line %d] Error at %s: %s.\n" line at_msg msg
+      Printf.sprintf "(call %s [%s])" (pretty_print expr) (aux args)
 
 let seq_hd_opt seq =
   match seq () with Seq.Nil -> None | Seq.Cons (hd, _) -> Some hd
@@ -68,18 +62,18 @@ let seq_tl seq = match seq () with Seq.Nil -> seq | Seq.Cons (_, tl) -> tl
 let ( let* ) = Option.bind
 let ( let+ ) = Result.bind
 
-let match_assignment_op seq =
+let match_assignment_op (seq : Token.t Seq.t) =
   let* hd = seq_hd_opt seq in
-  match hd.tt with Equal -> Some hd | _ -> None
+  match hd.tt with Token.Equal -> Some hd | _ -> None
 
-let match_equality_op seq =
+let match_equality_op (seq : Token.t Seq.t) =
   let* hd = seq_hd_opt seq in
   match hd.tt with
   | EqualEqual -> Some (ExpToken.exp_token hd EqBinop)
   | BangEqual -> Some (ExpToken.exp_token hd NeqBinop)
   | _ -> None
 
-let match_comparison_op seq =
+let match_comparison_op (seq : Token.t Seq.t) =
   let* hd = seq_hd_opt seq in
   match hd.tt with
   | Less -> Some (ExpToken.exp_token hd LtBinop)
@@ -88,40 +82,42 @@ let match_comparison_op seq =
   | GreaterEqual -> Some (ExpToken.exp_token hd GeqBinop)
   | _ -> None
 
-let match_term_op seq =
+let match_term_op (seq : Token.t Seq.t) =
   let* hd = seq_hd_opt seq in
   match hd.tt with
   | Minus -> Some (ExpToken.exp_token hd MinusBinop)
   | Plus -> Some (ExpToken.exp_token hd PlusBinop)
   | _ -> None
 
-let match_factor_op seq =
+let match_factor_op (seq : Token.t Seq.t) =
   let* hd = seq_hd_opt seq in
   match hd.tt with
   | Star -> Some (ExpToken.exp_token hd StarBinop)
   | Slash -> Some (ExpToken.exp_token hd SlashBinop)
   | _ -> None
 
-let match_unary_op seq =
+let match_unary_op (seq : Token.t Seq.t) =
   let* hd = seq_hd_opt seq in
   match hd.tt with
   | Bang -> Some (ExpToken.exp_token hd NotUnop)
   | Minus -> Some (ExpToken.exp_token hd NegUnop)
   | _ -> None
 
-let match_logical_or_op seq =
+let match_logical_or_op (seq : Token.t Seq.t) =
   let* hd = seq_hd_opt seq in
   match hd.tt with
   | Reserved OrKeyword -> Some (ExpToken.exp_token hd LogOrBinop)
   | _ -> None
 
-let match_logical_and_op seq =
+let match_logical_and_op (seq : Token.t Seq.t) =
   let* hd = seq_hd_opt seq in
   match hd.tt with
   | Reserved AndKeyword -> Some (ExpToken.exp_token hd LogAndBinop)
   | _ -> None
 
-let rec parse_assignment seq =
+let rec parse seq = parse_assignment seq
+
+and parse_assignment (seq : Token.t Seq.t) =
   let+ left, rest = parse_or seq in
   match match_assignment_op rest with
   | Some op -> (
@@ -130,8 +126,9 @@ let rec parse_assignment seq =
       | Literal l -> (
           match l.kind with
           | LVar name -> Ok (Assignment (name, right), rest)
-          | _ -> Error (SyntaxError (Some op, "Invalid assignment target.")))
-      | _ -> Error (SyntaxError (Some op, "Invalid assignment target.")))
+          | _ -> Error (Err.SyntaxError (Some op, "Invalid assignment target."))
+          )
+      | _ -> Error (Err.SyntaxError (Some op, "Invalid assignment target.")))
   | None -> Ok (left, rest)
 
 and parse_or seq =
@@ -209,12 +206,33 @@ and parse_factor seq =
   in
   aux rest expr
 
-and parse_unary (seq : token Seq.t) =
+and parse_unary (seq : Token.t Seq.t) =
   match match_unary_op seq with
   | Some op ->
       let+ right, rest = parse_unary (seq_tl seq) in
       Ok (Unary (op, right), rest)
-  | None -> parse_primary seq
+  | None -> parse_call seq
+
+and parse_call (seq : Token.t Seq.t) =
+  let+ expr, rest = parse_primary seq in
+  let rec parse_args seq args =
+    match Parsing.expect_right_paren_opt seq with
+    | Some _ -> Ok (List.[], seq) (* we shouldn't skip the right paren *)
+    | None -> (
+        let+ arg, rest = parse seq in
+        match Parsing.expect_comma_opt rest with
+        | Some rest -> parse_args rest List.(args @ [ arg ])
+        | _ -> Ok (args, rest))
+  in
+  let rec aux seq left =
+    match Parsing.expect_left_paren_opt seq with
+    | Some rest ->
+        let+ args, rest = parse_args rest List.[] in
+        let+ rest = Parsing.expect_right_paren rest "arguments" in
+        aux rest (Call (left, args))
+    | _ -> Ok (left, seq)
+  in
+  aux rest expr
 
 and parse_primary seq =
   match seq_hd_opt seq with
@@ -233,12 +251,10 @@ and parse_primary seq =
           let+ inner, rest = parse_assignment (seq_tl seq) in
           let+ hd =
             Option.to_result (seq_hd_opt rest)
-              ~none:(SyntaxError (None, "Expect expression"))
+              ~none:(Err.SyntaxError (None, "Expect expression"))
           in
           match hd.tt with
           | RightParen -> Ok (Grouping inner, seq_tl rest)
-          | _ -> Error (SyntaxError (Some hd, "Expect expression")))
+          | _ -> Error (Err.SyntaxError (Some hd, "Expect expression")))
       | _ -> Error (SyntaxError (Some hd, "Expect expression")))
   | None -> Error (SyntaxError (None, "Expect expression"))
-
-let parse_expr stream = parse_assignment stream
