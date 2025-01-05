@@ -57,7 +57,8 @@ let rec exec_stmt stmt env =
         ( None,
           Env.define name
             (Value.VCallable
-               ( List.length params,
+               ( Some name,
+                 List.length params,
                  fun (args, env) ->
                    let rec define_args pairs env =
                      match pairs with

@@ -3,7 +3,10 @@ type t =
   | VBool of bool
   | VNum of float
   | VStr of string
-  | VCallable of int * (t list * env -> (t * env, Err.runtime_error) result)
+  | VCallable of
+      string option
+      * int
+      * (t list * env -> (t * env, Err.runtime_error) result)
 
 and env
 

@@ -9,7 +9,10 @@ type t =
   | VBool of bool
   | VNum of float
   | VStr of string
-  | VCallable of int * (t list * env -> (t * env, Err.runtime_error) result)
+  | VCallable of
+      string option
+      * int
+      * (t list * env -> (t * env, Err.runtime_error) result)
 
 and env = Node of t ValueMap.t * env option
 
@@ -21,7 +24,10 @@ let pretty_print v =
   | VBool b -> if b then "true" else "false"
   | VNum n -> Common.float_value_to_string n
   | VStr s -> s
-  | VCallable (arity, _) -> Printf.sprintf "callable(arity: %d)" arity
+  | VCallable (name, _, _) -> (
+      match name with
+      | Some name -> Printf.sprintf "<fn %s>" name
+      | _ -> "<anonymous fn>")
 
 module Env = struct
   let empty = Node (ValueMap.empty, None)
@@ -192,7 +198,7 @@ let rec eval expr env : (t * env, Err.runtime_error) result =
       in
       let+ fn, env = eval expr env in
       match fn with
-      | VCallable (arity, fn) ->
+      | VCallable (_, arity, fn) ->
           let n = List.length args in
           if n <> arity then
             Error

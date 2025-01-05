@@ -16,7 +16,7 @@ let global_env =
     | List.(hd :: tl) ->
         let env =
           Env.define (nf_name hd)
-            (Value.VCallable (nf_arity hd, nf_call hd))
+            (Value.VCallable (Some (nf_name hd), nf_arity hd, nf_call hd))
             env
         in
         aux env tl

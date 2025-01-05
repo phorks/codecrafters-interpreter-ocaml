@@ -2,6 +2,7 @@ fun pp(x) {
     print x;
 }
 pp(5);
+print pp;
 if (clock() >= 10) {
 
     print "Hi";
