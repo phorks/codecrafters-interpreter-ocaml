@@ -21,8 +21,7 @@ let global_env =
         in
         aux env tl
   in
-  let globals = aux Env.empty native_fns in
-  Env.empty_with_parent globals
+  aux Env.empty native_fns
 
 let extract_globals env = Value.Env.root env
 

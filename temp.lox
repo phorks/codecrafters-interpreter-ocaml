@@ -1,5 +1,11 @@
-fun f() {
-    return;
+var globalGreeting = "Hello";
+
+fun makeGreeter() {
+  fun greet(name) {
+    print globalGreeting + " " + name;
+  }
+  return greet;
 }
 
-print f();
+var sayHello = makeGreeter();
+sayHello("Bob");
