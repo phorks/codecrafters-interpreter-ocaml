@@ -32,6 +32,14 @@ let expect_right_paren seq after_what =
   in
   Ok rest
 
+let expect_left_brace seq where =
+  let+ _, rest =
+    expect_tt seq (Printf.sprintf "Expect '}' %s" where) (function
+      | Token.LeftBrace -> Some ()
+      | _ -> None)
+  in
+  Ok rest
+
 let expect_ident seq err_msg =
   expect_tt seq err_msg (function Token.Ident name -> Some name | _ -> None)
 

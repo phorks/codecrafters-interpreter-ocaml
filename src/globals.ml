@@ -5,7 +5,9 @@ module Env = Value.Env
 let native_fns = List.[ NFClock ]
 let nf_arity = function NFClock -> 0
 let nf_name = function NFClock -> "clock"
-let nf_call = function NFClock -> fun _ -> Value.VNum (Unix.time ())
+
+let nf_call = function
+  | NFClock -> fun (_, env) -> Ok (Value.VNum (Unix.time ()), env)
 
 let global_env =
   let rec aux env fns =
@@ -19,4 +21,11 @@ let global_env =
         in
         aux env tl
   in
-  aux Env.empty native_fns
+  let globals = aux Env.empty native_fns in
+  Env.empty_with_parent globals
+
+let extract_globals env = Value.Env.root env
+
+let replace_globals target source =
+  let root = extract_globals source in
+  Value.Env.replace_root target root

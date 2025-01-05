@@ -1,3 +1,8 @@
+fun pp(x) {
+    print x;
+}
+pp(5);
 if (clock() >= 10) {
+
     print "Hi";
 }

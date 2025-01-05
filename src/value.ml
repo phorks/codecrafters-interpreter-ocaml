@@ -2,12 +2,16 @@ let ( let+ ) = Result.bind
 
 exception Unreachable
 
+module ValueMap = Map.Make (String)
+
 type t =
   | VNil
   | VBool of bool
   | VNum of float
   | VStr of string
-  | VCallable of int * (t list -> t)
+  | VCallable of int * (t list * env -> (t * env, Err.runtime_error) result)
+
+and env = Node of t ValueMap.t * env option
 
 let truth = function VNil -> false | VBool b -> b | _ -> true
 
@@ -20,16 +24,10 @@ let pretty_print v =
   | VCallable (arity, _) -> Printf.sprintf "callable(arity: %d)" arity
 
 module Env = struct
-  type value = t
-
-  module ValueMap = Map.Make (String)
-
-  type t = Node of value ValueMap.t * t option
-
   let empty = Node (ValueMap.empty, None)
-  let empty_with_parent parent : t = Node (ValueMap.empty, Some parent)
+  let empty_with_parent parent : env = Node (ValueMap.empty, Some parent)
 
-  let rec get (name : string) (env : t) =
+  let rec get (name : string) (env : env) =
     match env with
     | Node (map, parent) -> (
         match ValueMap.find_opt name map with
@@ -42,10 +40,10 @@ module Env = struct
                      (Printf.sprintf "Undefined variable '%s'." name))
             | Some parent -> get name parent))
 
-  let define (name : string) (v : value) (env : t) =
+  let define (name : string) (v : t) (env : env) =
     match env with Node (map, parent) -> Node (ValueMap.add name v map, parent)
 
-  let rec assign (name : string) (v : value) (env : t) =
+  let rec assign (name : string) (v : t) (env : env) =
     match env with
     | Node (map, parent) -> (
         if ValueMap.mem name map then
@@ -60,7 +58,19 @@ module Env = struct
               let+ parent = assign name v parent in
               Ok (Node (map, Some parent)))
 
-  let parent (env : t) = match env with Node (_, parent) -> parent
+  let parent (env : env) = match env with Node (_, parent) -> parent
+
+  let rec root env =
+    match env with
+    | Node (_, parent) -> (
+        match parent with Some parent -> root parent | None -> env)
+
+  let rec replace_root env root =
+    match env with
+    | Node (map, parent) -> (
+        match parent with
+        | Some parent -> Node (map, Some (replace_root parent root))
+        | _ -> root)
 end
 
 let eval_literal l env =
@@ -101,7 +111,7 @@ let binop_type_err type_str () =
 let binop_num_str_err () =
   Error (Err.RuntimeError "Operands must be two numbers or two strings.")
 
-let rec eval expr env : (t * Env.t, Err.runtime_error) result =
+let rec eval expr env : (t * env, Err.runtime_error) result =
   match expr with
   | Expr.Literal l -> eval_literal l.kind env
   | Expr.Unary (op, a) -> (
@@ -190,5 +200,5 @@ let rec eval expr env : (t * Env.t, Err.runtime_error) result =
                  (Printf.sprintf "Expected %d arguments but got %d." arity n))
           else
             let+ args, env = map_args args env List.[] in
-            Ok (fn args, env)
+            fn (args, env)
       | _ -> Error (Err.RuntimeError "Can only call functions and classes."))

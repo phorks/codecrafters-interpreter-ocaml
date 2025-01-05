@@ -220,8 +220,9 @@ and parse_call (seq : Token.t Seq.t) =
     | Some _ -> Ok (List.[], seq) (* we shouldn't skip the right paren *)
     | None -> (
         let+ arg, rest = parse seq in
+        let args = List.(args @ [ arg ]) in
         match Parsing.expect_comma_opt rest with
-        | Some rest -> parse_args rest List.(args @ [ arg ])
+        | Some rest -> parse_args rest args
         | _ -> Ok (args, rest))
   in
   let rec aux seq left =

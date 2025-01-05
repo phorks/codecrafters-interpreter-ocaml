@@ -5,6 +5,8 @@ type t =
   | STBlock of t list
   | STIf of Expr.t * t * t option
   | STWhile of Expr.t * t
+  | STFn of string * string list * t
+  | STRet of Expr.t
 
 let ( let* ) = Option.bind
 let ( let+ ) = Result.bind
@@ -53,6 +55,8 @@ and parse_single (seq : Token.t Seq.t) =
       | Token.Reserved Token.IfKeyword -> parse_if tl
       | Token.Reserved Token.WhileKeyword -> parse_while tl
       | Token.Reserved Token.ForKeyword -> parse_for tl
+      | Token.Reserved Token.FunKeyword -> parse_fun tl "function"
+      | Token.Reserved Token.ReturnKeyword -> parse_return tl
       | _ -> parse_expr seq)
 
 and parse_block (seq : Token.t Seq.t) =
@@ -142,3 +146,30 @@ and parse_for (seq : Token.t Seq.t) =
     | _ -> while_stmt
   in
   Ok (stmt, rest)
+
+and parse_fun (seq : Token.t Seq.t) kind =
+  let rec parse_params seq params =
+    match Parsing.expect_right_paren_opt seq with
+    | Some _ -> Ok (List.[], seq) (* we shouldn't skip the right paren *)
+    | None -> (
+        let+ param, rest = Parsing.expect_ident seq "Expect parameter name" in
+        let params = List.(params @ [ param ]) in
+        match Parsing.expect_comma_opt rest with
+        | Some rest -> parse_params rest params
+        | _ -> Ok (params, rest))
+  in
+  let+ name, rest =
+    Parsing.expect_ident seq (Printf.sprintf "Expect %s name" kind)
+  in
+  let+ rest = Parsing.expect_left_paren rest (Printf.sprintf "%s name" kind) in
+  let+ params, rest = parse_params rest List.[] in
+  let+ rest = Parsing.expect_right_paren rest "parameters" in
+  let+ rest =
+    Parsing.expect_left_brace rest (Printf.sprintf "before %s body" kind)
+  in
+  let+ body, rest = parse_block rest in
+  Ok (STFn (name, params, body), rest)
+
+and parse_return (seq : Token.t Seq.t) =
+  let+ expr, rest = Expr.parse seq in
+  Ok (STRet expr, rest)
