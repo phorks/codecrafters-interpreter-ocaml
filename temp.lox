@@ -1,9 +1,8 @@
-fun pp(x) {
-    print x;
+fun fib(n) {
+  if (n < 2) return n;
+  return fib(n - 2) + fib(n - 1);
 }
-pp(5);
-print pp;
-if (clock() >= 10) {
 
-    print "Hi";
-}
+var start = clock();
+print fib(32) == 2178309;
+print (clock() - start) < 5; // 5 seconds

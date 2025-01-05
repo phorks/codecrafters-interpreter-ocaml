@@ -172,4 +172,5 @@ and parse_fun (seq : Token.t Seq.t) kind =
 
 and parse_return (seq : Token.t Seq.t) =
   let+ expr, rest = Expr.parse seq in
+  let+ rest = Parsing.expect_semicolon rest "return value" in
   Ok (STRet expr, rest)
