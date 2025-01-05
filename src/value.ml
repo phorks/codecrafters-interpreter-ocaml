@@ -198,7 +198,7 @@ let rec eval expr env : (t * env, Err.runtime_error) result =
       in
       let+ fn, env = eval expr env in
       match fn with
-      | VCallable (_, arity, fn) ->
+      | VCallable (name, arity, fn) ->
           let n = List.length args in
           if n <> arity then
             Error
@@ -206,5 +206,16 @@ let rec eval expr env : (t * env, Err.runtime_error) result =
                  (Printf.sprintf "Expected %d arguments but got %d." arity n))
           else
             let+ args, env = map_args args env List.[] in
-            fn (args, env)
+            let globals = Env.root env in
+            let exec_env = Env.empty_with_parent globals in
+            let exec_env =
+              match name with
+              | Some name ->
+                  Env.define name (VCallable (Some name, arity, fn)) exec_env
+              | _ -> exec_env
+            in
+            let+ ret, exec_env = fn (args, exec_env) in
+            let exec_root = Env.root exec_env in
+            let env = Env.replace_root env exec_root in
+            Ok (ret, env)
       | _ -> Error (Err.RuntimeError "Can only call functions and classes."))

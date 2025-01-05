@@ -53,23 +53,16 @@ let rec exec_stmt stmt env =
       in
       aux env
   | Stmt.STFn (name, params, body) ->
-      let rec fn (args, env) =
+      let fn (args, env) =
         let rec define_args pairs env =
           match pairs with
           | List.[] -> env
           | List.((n, v) :: tl) -> define_args tl (Env.define n v env)
         in
-        let globals = Globals.extract_globals env in
-        let exec_env = Env.empty_with_parent globals in
-        let exec_env = define_args (List.combine params args) exec_env in
-        let exec_env =
-          Env.define name
-            (Value.VCallable (Some name, List.length params, fn))
-            exec_env
-        in
-        let+ res, exec_env = exec_stmt body exec_env in
+        let env = define_args (List.combine params args) env in
+        let+ res, env = exec_stmt body env in
         let v = match res with Some (ERReturn v) -> v | _ -> Value.VNil in
-        Ok (v, Globals.replace_globals env exec_env)
+        Ok (v, env)
       in
       Ok
         ( None,

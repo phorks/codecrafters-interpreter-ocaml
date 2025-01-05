@@ -64,3 +64,8 @@ let expect_right_paren_opt seq =
 
 let expect_comma_opt seq =
   expect_tt_opt seq (function Token.Comma -> true | _ -> false)
+
+let expect_semicolon_opt (seq : Token.t Seq.t) =
+  match seq () with
+  | Seq.Cons (({ tt = Token.Semicolon; _ } as hd), tl) -> Some (hd, tl)
+  | _ -> None

@@ -171,6 +171,10 @@ and parse_fun (seq : Token.t Seq.t) kind =
   Ok (STFn (name, params, body), rest)
 
 and parse_return (seq : Token.t Seq.t) =
-  let+ expr, rest = Expr.parse seq in
-  let+ rest = Parsing.expect_semicolon rest "return value" in
-  Ok (STRet expr, rest)
+  match Parsing.expect_semicolon_opt seq with
+  | Some (token, rest) ->
+      Ok (STRet (Expr.Literal (Expr.ExpToken.exp_token token Expr.LNil)), rest)
+  | _ ->
+      let+ expr, rest = Expr.parse seq in
+      let+ rest = Parsing.expect_semicolon rest "return value" in
+      Ok (STRet expr, rest)
