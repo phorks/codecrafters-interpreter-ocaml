@@ -60,14 +60,14 @@ let rec exec_stmt stmt env =
           | List.((n, v) :: tl) -> define_args tl (Env.define n v env)
         in
         let env = define_args (List.combine params args) env in
-        let+ res, env = exec_stmt body env in
+        let+ res, _ = exec_stmt body env in
         let v = match res with Some (ERReturn v) -> v | _ -> Value.VNil in
-        Ok (v, env)
+        Ok v
       in
       Ok
         ( None,
           Env.define name
-            (Value.VCallable (Some name, List.length params, fn))
+            (Value.VCallable (Some env, Some name, List.length params, fn))
             env )
   | Stmt.STRet expr ->
       let+ v, rest = Value.eval expr env in

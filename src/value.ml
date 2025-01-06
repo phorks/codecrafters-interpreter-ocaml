@@ -2,19 +2,19 @@ let ( let+ ) = Result.bind
 
 exception Unreachable
 
-module ValueMap = Map.Make (String)
-
 type t =
   | VNil
   | VBool of bool
   | VNum of float
   | VStr of string
   | VCallable of
-      string option
+      env option
+      * string option
       * int
-      * (t list * env -> (t * env, Err.runtime_error) result)
+      * (t list * env -> (t, Err.runtime_error) result)
 
-and env = Node of t ValueMap.t * env option
+and env = Node of value_map * env option
+and value_map = (string, t) Hashtbl.t
 
 let truth = function VNil -> false | VBool b -> b | _ -> true
 
@@ -24,59 +24,66 @@ let pretty_print v =
   | VBool b -> if b then "true" else "false"
   | VNum n -> Common.float_value_to_string n
   | VStr s -> s
-  | VCallable (name, _, _) -> (
+  | VCallable (_, name, _, _) -> (
       match name with
       | Some name -> Printf.sprintf "<fn %s>" name
       | _ -> "<anonymous fn>")
 
 module Env = struct
-  let empty = Node (ValueMap.empty, None)
-  let empty_with_parent parent : env = Node (ValueMap.empty, Some parent)
+  let destruct env = match env with Node (map, parent) -> (map, parent)
+  let empty () = Node (Hashtbl.create 64, None)
+  let empty_with_parent parent : env = Node (Hashtbl.create 64, Some parent)
 
   let rec get (name : string) (env : env) =
-    match env with
-    | Node (map, parent) -> (
-        match ValueMap.find_opt name map with
-        | Some v -> Ok v
-        | None -> (
-            match parent with
-            | None ->
-                Error
-                  (Err.RuntimeError
-                     (Printf.sprintf "Undefined variable '%s'." name))
-            | Some parent -> get name parent))
+    let map, parent = destruct env in
+    match Hashtbl.find_opt map name with
+    | Some v -> Ok v
+    | None -> (
+        match parent with
+        | None ->
+            Error
+              (Err.RuntimeError (Printf.sprintf "Undefined variable '%s'." name))
+        | Some parent -> get name parent)
 
   let define (name : string) (v : t) (env : env) =
-    match env with Node (map, parent) -> Node (ValueMap.add name v map, parent)
+    let map, parent = destruct env in
+    Hashtbl.replace map name v;
+    Node (map, parent)
 
   let rec assign (name : string) (v : t) (env : env) =
-    match env with
-    | Node (map, parent) -> (
-        if ValueMap.mem name map then
-          Ok (Node (ValueMap.add name v map, parent))
-        else
-          match parent with
-          | None ->
-              Error
-                (Err.RuntimeError
-                   (Printf.sprintf "Undefined variable '%s'." name))
-          | Some parent ->
-              let+ parent = assign name v parent in
-              Ok (Node (map, Some parent)))
-
-  let parent (env : env) = match env with Node (_, parent) -> parent
+    let map, parent = destruct env in
+    if Hashtbl.mem map name then (
+      Hashtbl.replace map name v;
+      Ok (Node (map, parent)))
+    else
+      match parent with
+      | None ->
+          Error
+            (Err.RuntimeError (Printf.sprintf "Undefined variable '%s'." name))
+      | Some parent ->
+          let+ parent = assign name v parent in
+          Ok (Node (map, Some parent))
 
   let rec root env =
     match env with
     | Node (_, parent) -> (
         match parent with Some parent -> root parent | None -> env)
 
-  let rec replace_root env root =
-    match env with
-    | Node (map, parent) -> (
-        match parent with
-        | Some parent -> Node (map, Some (replace_root parent root))
-        | _ -> root)
+  let parent (env : env) =
+    let _, parent = destruct env in
+    parent
+
+  let print_names env =
+    let rec aux seq =
+      match seq () with
+      | Seq.Nil -> ()
+      | Seq.Cons ((key, _), tl) ->
+          Printf.printf "%s, " key;
+          aux tl
+    in
+    let map, _ = destruct env in
+    aux (Hashtbl.to_seq map);
+    Printf.printf "\n"
 end
 
 let eval_literal l env =
@@ -198,7 +205,7 @@ let rec eval expr env : (t * env, Err.runtime_error) result =
       in
       let+ fn, env = eval expr env in
       match fn with
-      | VCallable (name, arity, fn) ->
+      | VCallable (closure, _, arity, fn) ->
           let n = List.length args in
           if n <> arity then
             Error
@@ -206,16 +213,13 @@ let rec eval expr env : (t * env, Err.runtime_error) result =
                  (Printf.sprintf "Expected %d arguments but got %d." arity n))
           else
             let+ args, env = map_args args env List.[] in
-            let globals = Env.root env in
-            let exec_env = Env.empty_with_parent globals in
             let exec_env =
-              match name with
-              | Some name ->
-                  Env.define name (VCallable (Some name, arity, fn)) exec_env
-              | _ -> exec_env
+              match closure with
+              | Some closure -> closure
+              | None -> Env.root env
+              (* if the callable is a foreign function, env should be global *)
             in
-            let+ ret, exec_env = fn (args, exec_env) in
-            let exec_root = Env.root exec_env in
-            let env = Env.replace_root env exec_root in
+            let exec_env = Env.empty_with_parent exec_env in
+            let+ ret = fn (args, exec_env) in
             Ok (ret, env)
       | _ -> Error (Err.RuntimeError "Can only call functions and classes."))
