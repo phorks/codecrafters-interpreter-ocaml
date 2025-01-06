@@ -18,7 +18,7 @@ functional programming style and only uses immutable data structures.
 | Scanning      | :white_check_mark: | :white_check_mark: |
 | Representing Code | :white_check_mark: | :white_check_mark: |
 | Parsing Expressions | :white_check_mark: | :white_check_mark: |
-| Evaluating Expression | :white_check_mark: | :white_check_mark: |
+| Evaluating Expressions | :white_check_mark: | :white_check_mark: |
 | Statements and State | :white_check_mark: | :white_check_mark: |
 | Control Flow | :white_check_mark: | :white_check_mark: |
 | Functions | :white_check_mark: | :white_check_mark: |
